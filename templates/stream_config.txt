@@ -1,0 +1,7 @@
+width=320
+height=240
+fps=15
+ip=10.1.1.114
+port=5004
+codec=libx264
+bitrate=800k
