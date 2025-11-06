@@ -22,7 +22,7 @@ target_include_directories(RPiUSBHeadTracker PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} 
 
 find_package( OpenCV REQUIRED )
 
-
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/templates")
 add_custom_target(templates
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different
 	"${CMAKE_CURRENT_SOURCE_DIR}/templates/*"
@@ -32,11 +32,22 @@ add_custom_target(templates
 )
 add_dependencies( RPiUSBHeadTracker templates)
 
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static")
+add_custom_target(staticfiles
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+	"${CMAKE_CURRENT_SOURCE_DIR}/static/*"
+	#"$<TARGET_FILE_DIR:RPiUSBHeadTracker>/templates"
+	"${CMAKE_CURRENT_BINARY_DIR}/static"
+	COMMENT "Copying static files"
+)
+add_dependencies( RPiUSBHeadTracker staticfiles)
+
 add_subdirectory(./LCCV)
 
 #find_package(Drogon CONFIG REQUIRED)
 #target_link_libraries(${PROJECT_NAME} PRIVATE "libdrogon.a" "libtrantor.a"  "libz.a" "libssl.a" "libcrypto.a" "libyaml-cpp.a" "jsoncpp" "cares" "brotlicommon" "brotlidec" "brotlienc" "uuid")
 target_link_libraries(${PROJECT_NAME} PRIVATE libssl.a ${OpenCV_LIBS} liblccv.so)
+
 
 
 

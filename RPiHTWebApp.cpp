@@ -69,13 +69,13 @@ public:
         });
 
     // test
-    CROW_ROUTE(webapp, "/<string>")
-      ([](std::string name)
-    {
-      auto page = crow::mustache::load("fancypage.html"); //
-      crow::mustache::context ctx({ {"person", name} }); //
-      return page.render(ctx); //
-    });
+    //CROW_ROUTE(webapp, "/<string>")
+    //  ([](std::string name)
+    //{
+    //  auto page = crow::mustache::load("fancypage.html"); //
+    //  crow::mustache::context ctx({ {"person", name} }); //
+    //  return page.render(ctx); //
+    //});
 
     _a = webapp.port(config.data.port).run_async();
   };
