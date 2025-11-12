@@ -19,7 +19,7 @@ public:
       ([&config]()
     {
       auto page = crow::mustache::load("status.html");
-      crow::mustache::context ctx({ {"person", config.data.device_path} }); //
+      crow::mustache::context ctx({ {"title","Status"}}); //
       return page.render(ctx);
     });
 
@@ -28,7 +28,7 @@ public:
       ([&config]()
         {
           auto page = crow::mustache::load("adjust.html");
-          crow::mustache::context ctx({ {"person", config.data.device_path} }); //
+          crow::mustache::context ctx({ {"title", "Adjust"}}); //
           return page.render(ctx);
         });
 

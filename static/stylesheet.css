@@ -1,0 +1,21 @@
+﻿body {
+  background-color: black;
+}
+.layout-transparent .mdl-layout__header,
+.layout-transparent .mdl-layout__drawer-button {
+  /* This background is dark, so we set text to white. Use 87% black instead if
+     your background is light. */
+  color: white;
+}
+
+#main-menu {
+  width: 60px;
+  padding:0;
+}
+#main-menu > i {
+  position:initial;
+  top:auto; left:auto;
+  font-size: 35px;
+  padding:10px 10px 0 25px;
+}
+

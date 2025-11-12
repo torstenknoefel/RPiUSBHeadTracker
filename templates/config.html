@@ -2,19 +2,20 @@
 
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="utf-8" />
-    <title>Config</title>
+    {{> head.html}}
 </head>
 <body>
-    <center>
-        <h1>Configuration</h1>
-        <form action="/config" method="post">
-            <label for="device">Joystick device:</label>
-            <input type="text" id="device" name="device" value="{{device}}" /><br /><br />
-            <input type="reset" value="Reset">
-            <input type="submit" name="action" value="Set">
-            <input type="submit" name="action" value="Save">
-        </form>
-    </center>
+    {{> menu.html}}
+    <main class="responsive">
+        <center>
+            <h1>Configuration</h1>
+            <form action="/config" method="post">
+                <label for="device">Joystick device:</label><input type="text" class="responsive round " id="device" name="device" value="{{device}}" /><br /><br />
+                <input type="reset" class="responsive round" value="Reset">
+                <input type="submit" class="responsive round medium-height" name="action" value="Set">
+                <input type="submit" class="responsive round medium-height" name="action" value="Save">
+            </form>
+        </center>
+    </main>
 </body>
 </html>

@@ -2,28 +2,30 @@
 
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="utf-8" />
-    <title>Adjust</title>
+    {{> head.html}}
 </head>
 <body>
-    <img src="/image" alt="Camera" width="640" height="480" id="myimg">
+    {{> menu.html}}
+    <main class="responsive">
+        <img src="/image" class="responsive round medium-height" alt="Camera" id="myimg">
+    </main>
+        <script>
+            var org = document.getElementById("myimg").src;
 
-    <script>
-    var org = document.getElementById("myimg").src;
+            setInterval(function () {
+                refreshImg();
+            }, 100);
+            // 2000 = 2 seconds, change to whatever you like
 
-    setInterval(function () {
-        refreshImg();
-    }, 100);
-    // 2000 = 2 seconds, change to whatever you like
-
-    function refreshImg() {
-        document.getElementById("myimg").src = org + '?' + new Date().getTime();
-       // //var x = document.querySelectorAll("body > img");
-        //for (var i = x.length - 1; i >= 0; i--) {
-          //  x[i].src = o[i] + '?' + new Date().getTime();
-            //console.log(x[i].src);
-       // };
-    }
-    </script>
+            function refreshImg() {
+                document.getElementById("myimg").src = org + '?' + new Date().getTime();
+                // //var x = document.querySelectorAll("body > img");
+                //for (var i = x.length - 1; i >= 0; i--) {
+                //  x[i].src = o[i] + '?' + new Date().getTime();
+                //console.log(x[i].src);
+                // };
+            }
+        </script>
 </body>
 </html>
+
