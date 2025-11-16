@@ -22,6 +22,8 @@ using namespace std;
 #include "RPiHTWebApp.h"
 #include "RPiHTCam.h"
 
+std::atomic_bool run = true; // we need this in either config or a separate status class,probably the latter:
+                        // a struct in a header file and no code just two atomic bools, included at least in the main and the webapp
 
 RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig &config)
   : webapp(config, cam)
@@ -34,7 +36,7 @@ RPiUSBHeadTracker::~RPiUSBHeadTracker() = default;
 bool RPiUSBHeadTracker::run()
 {
   printf("Started Headtracker\n\r");
-  while (1) {
+  while (1) { //while atomic_bool not_reload_config
 
     // Basic Joystick
     throttle = (i >> 8) & 0xFF; // value -127 .. 128
@@ -86,7 +88,7 @@ bool RPiUSBHeadTracker::run()
     joystick.update(throttle, rudder, x, y, buttons, hat);
     usleep(100000);
   }
-  return false;
+  return true; // not atomic_bool keep_running
 }
 
 int main(int argc, char** argv) {

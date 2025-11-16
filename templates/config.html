@@ -7,15 +7,66 @@
 <body>
     {{> menu.html}}
     <main class="responsive">
-        <center>
-            <h1>Configuration</h1>
-            <form action="/config" method="post">
-                <label for="device">Joystick device:</label><input type="text" class="responsive round " id="device" name="device" value="{{device}}" /><br /><br />
-                <input type="reset" class="responsive round" value="Reset">
-                <input type="submit" class="responsive round medium-height" name="action" value="Set">
-                <input type="submit" class="responsive round medium-height" name="action" value="Save">
-            </form>
-        </center>
+       
+
+        <form action="/config" method="post">
+            <fieldset class="border round label">
+                <legend>System</legend>
+                <div class="field border  label">
+                    <input type="text" id="device" name="device" value="{{device}}" />
+                    <label>Joystick device</label>
+                </div>
+                <div class="field border  label">
+                    <input type="text" id="ip" name="ip" value="{{ip}}" />
+                    <label>Web Server Address</label>
+                </div>
+                <div class="field border  label">
+                    <input type="number" id="port" name="port" value="{{port}}" />
+                    <label>Web Server Port</label>
+                </div>
+            </fieldset>
+            <fieldset class="border round label">
+                <legend>Camera</legend>
+                <div class="field border  label">
+                    <input type="number" id="cam" name="cam" value="{{cam}}" />
+                    <label>Device No</label>
+                </div>
+                <label class="checkbox">
+                    <input type="checkbox" id="cam_verbose" name="cam_verbose" value="{{cam_verbose}}" />
+                    <span>Verbose Log</span>
+                </label>
+                <div class="field border  label">
+                    <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" />
+                    <label>Width</label>
+                </div>
+                <div class="field border  label">
+                    <input type="number" id="cam_height" name="cam_height" value="{{cam_height}}" />
+                    <label>Height</label>
+                </div>
+                <div class="field border  label">
+                    <input type="number" id="cam_frate" name="cam_frate" value="{{cam_frate}}" />
+                    <label>Framerate</label>
+                </div>
+
+            </fieldset>
+            <center>
+                <button type="reset" value="Reset">
+                    <i>reset_settings</i>
+                    <span>Reset</span>
+                </button>
+                <button type="submit" name="action" value="Set">
+                    <i>rule_settings</i>
+                    <span>Apply</span>
+                </button>
+
+                <button type="submit" name="action" value="Save">
+                    <i>save</i>
+                    <span>Save</span>
+                </button>
+            </center>
+
+        </form>
+       
     </main>
 </body>
 </html>

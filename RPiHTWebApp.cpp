@@ -47,7 +47,11 @@ public:
         }
       }
       auto page = crow::mustache::load("config.html");
-      crow::mustache::context ctx({ {"device", config.data.device_path} });
+      crow::mustache::context ctx({ {"title", "Configuration"},
+                                    {"device", config.data.device_path},
+                                    {"ip", config.data.ip},
+                                    {"port", config.data.port},
+                                  });
       return page.render(ctx);
     });
 
