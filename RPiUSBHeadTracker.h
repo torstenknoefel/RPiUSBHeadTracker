@@ -31,7 +31,7 @@ public:
   USBJoystick joystick;
   RPiUSBHeadTracker(RPiHTConfig &config);
   ~RPiUSBHeadTracker();
-  bool run();
+  void run();
 private:
 
 };

@@ -2,12 +2,14 @@
 #include <lccv.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "RPiHTConfig.h"
+
 class RPiHTCam
 {
 
 public:
 
-  RPiHTCam();
+  RPiHTCam(RPiHTConfig&);
   ~RPiHTCam();
 
 

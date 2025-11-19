@@ -11,20 +11,20 @@
 #include "RPiHTCam.h"
 
 
-RPiHTCam::RPiHTCam()
+RPiHTCam::RPiHTCam(RPiHTConfig& config)
 {
   num_cams = LibcameraApp::GetNumberCameras();
   std::cout << "Found " << num_cams << " cameras." << std::endl;
 
-  height = 480;
-  width = 640;
-  
+  height = config.data.cam_height;
+  width = config.data.cam_width;
+
   image = cv::Mat(height, width, CV_8UC3);
 
   cam.options->video_width = width;
   cam.options->video_height = height;
-  cam.options->framerate = 30;
-  cam.options->verbose = true;
+  cam.options->framerate = config.data.cam_framerate;
+  cam.options->verbose = config.data.cam_verbose;
  // cv::namedWindow("Video", cv::WINDOW_NORMAL);
   cam.startVideo();
 

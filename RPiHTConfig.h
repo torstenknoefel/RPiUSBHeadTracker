@@ -9,6 +9,10 @@ struct rpiht_config
   std::string device_path;
   std::string ip;
   int port;
+  uint32_t cam_height;
+  uint32_t cam_width;
+  float cam_framerate;
+  bool cam_verbose;
 };
 
 class RPiHTConfig

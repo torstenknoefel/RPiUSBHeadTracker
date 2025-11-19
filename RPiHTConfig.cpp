@@ -20,6 +20,10 @@ namespace tao::json
   struct traits< rpiht_config > : binding::object<
     TAO_JSON_BIND_REQUIRED("device", &rpiht_config::device_path),
     TAO_JSON_BIND_OPTIONAL("ip", &rpiht_config::ip),
+    TAO_JSON_BIND_REQUIRED("cam_width", &rpiht_config::cam_width),
+    TAO_JSON_BIND_REQUIRED("cam_height", &rpiht_config::cam_height),
+    TAO_JSON_BIND_REQUIRED("cam_framerate", &rpiht_config::cam_framerate),
+    TAO_JSON_BIND_REQUIRED("cam_verbose", &rpiht_config::cam_verbose),
     TAO_JSON_BIND_REQUIRED("port", &rpiht_config::port)
   >
   {
@@ -35,8 +39,10 @@ public:
   {
     config_data = cfg_ptr;
     config_path = path;
-    v = tao::config::from_file(std::filesystem::path(path));
-    *config_data = v.as <rpiht_config>();
+    tao::config::internal::try_catch([=]() {
+      v = tao::config::from_file(std::filesystem::path(path));
+      *config_data = v.as <rpiht_config>(); //TODO: Error handling test?
+      });
   };
   ~Impl() = default;
   void print()

@@ -5,7 +5,16 @@
 #include "RPiHTWebApp.h"
 #include "QueryParser.h"
 
+extern std::atomic_bool run;
+extern std::atomic_bool reload_config;
 
+bool stob(std::string str) {
+  std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+  std::istringstream is(str);
+  bool b;
+  is >> std::boolalpha >> b;
+  return b;
+}
 
 class RPiHTWebApp::Impl
 {
@@ -39,18 +48,31 @@ public:
       QueryParser post = QueryParser(req.body);
       if (post.keys().size() > 0) // we are getting a valid response
       {
-        config.data.device_path = post.get("device");
-
-        if (post.get("action") == "Save")
-        {
-          config.save();
-        }
+        if (post.get("action") == "Save" ||  post.get("action") == "Set")
+          config.data.device_path = post.get("device");
+          config.data.ip = post.get("ip");
+          config.data.port = stoi(post.get("port"));
+          config.data.cam_height = stoi(post.get("cam_height"));
+          config.data.cam_width = stoi(post.get("cam_width"));
+          config.data.cam_framerate = stof(post.get("cam_framerate"));
+          config.data.cam_verbose = stob(post.get("cam_verbose"));
+          if (post.get("action") == "Save")
+          {
+            config.save();
+          }
+          else { // must be Set
+            reload_config = true;
+          }
       }
       auto page = crow::mustache::load("config.html");
       crow::mustache::context ctx({ {"title", "Configuration"},
                                     {"device", config.data.device_path},
                                     {"ip", config.data.ip},
                                     {"port", config.data.port},
+                                    {"cam_height", config.data.cam_height},
+                                    {"cam_width", config.data.cam_width},
+                                    {"cam_framerate", config.data.cam_framerate},
+                                    {"cam_verbose", config.data.cam_verbose},
                                   });
       return page.render(ctx);
     });
@@ -81,9 +103,12 @@ public:
     //  return page.render(ctx); //
     //});
 
-    _a = webapp.port(config.data.port).run_async();
+    _a = webapp.bindaddr(config.data.ip).port(config.data.port).run_async();
   };
-  ~Impl() = default;
+  ~Impl()
+  {
+    webapp.stop();
+  };
 private:
   crow::SimpleApp webapp;
   std::future<void> _a;

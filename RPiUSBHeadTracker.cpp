@@ -22,21 +22,23 @@ using namespace std;
 #include "RPiHTWebApp.h"
 #include "RPiHTCam.h"
 
-std::atomic_bool run = true; // we need this in either config or a separate status class,probably the latter:
-                        // a struct in a header file and no code just two atomic bools, included at least in the main and the webapp
+std::atomic_bool run = true;    // we need this in either config or a separate status class,probably the latter:
+std::atomic_bool reload_config = false;                        // a struct in a header file and no code just two atomic bools, included at least in the main and the webapp
 
-RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig &config)
-  : webapp(config, cam)
+RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig& config)
+  : cam(config)
+  , webapp(config, cam)
   , joystick(config.data.device_path)
 {
 }
 
 RPiUSBHeadTracker::~RPiUSBHeadTracker() = default;
 
-bool RPiUSBHeadTracker::run()
+void RPiUSBHeadTracker::run()
 {
   printf("Started Headtracker\n\r");
-  while (1) { //while atomic_bool not_reload_config
+  reload_config = false;
+  while (not reload_config) { //while atomic_bool not_reload_config
 
     // Basic Joystick
     throttle = (i >> 8) & 0xFF; // value -127 .. 128
@@ -74,21 +76,20 @@ bool RPiUSBHeadTracker::run()
 
 
   // Advanced Joystick
-  hat = (1 >> 8) & 0x07;   // value 0..7 or 8 for neutral
-  tmp = (1 >> 8) & 0xFF;   // value    0 .. 255, one bit per button
-  buttons = ((tmp << 0) & 0x000000FF);
-  buttons = buttons | ((~tmp << 8) & 0x0000FF00);
-  buttons = buttons | ((tmp << 16) & 0x00FF0000);
-  buttons = buttons | ((~tmp << 24) & 0xFF000000);
-  for (angle = 0; angle < 360; angle += 5) {
-    x = cos((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
-    y = sin((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
-    throttle = (sin((double)angle * 3.14 / 180.0) + 1) * 127; // value   0 .. 255
-    rudder = (cos((double)angle * 3.14 / 180.0) + 1) * 127;   // value   0 .. 255()
-    joystick.update(throttle, rudder, x, y, buttons, hat);
-    usleep(100000);
-  }
-  return true; // not atomic_bool keep_running
+ // hat = (1 >> 8) & 0x07;   // value 0..7 or 8 for neutral
+ // tmp = (1 >> 8) & 0xFF;   // value    0 .. 255, one bit per button
+ // buttons = ((tmp << 0) & 0x000000FF);
+ // buttons = buttons | ((~tmp << 8) & 0x0000FF00);
+ // buttons = buttons | ((tmp << 16) & 0x00FF0000);
+ // buttons = buttons | ((~tmp << 24) & 0xFF000000);
+ // for (angle = 0; angle < 360; angle += 5) {
+ //   x = cos((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
+ //   y = sin((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
+ //   throttle = (sin((double)angle * 3.14 / 180.0) + 1) * 127; // value   0 .. 255
+ //   rudder = (cos((double)angle * 3.14 / 180.0) + 1) * 127;   // value   0 .. 255()
+ //   joystick.update(throttle, rudder, x, y, buttons, hat);
+ //   usleep(100000);
+//  }
 }
 
 int main(int argc, char** argv) {
@@ -106,11 +107,11 @@ int main(int argc, char** argv) {
   printf("Current Configuration:\n\r");
   config.print();
 
-  bool run = true;
+
   do
   {
     RPiUSBHeadTracker app(config);
-    run = app.run();
+    app.run();
   } while (run);
 
 }
