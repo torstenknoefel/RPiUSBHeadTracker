@@ -25,7 +25,6 @@ public:
   uint32_t buttons = 0;
   uint8_t hat = 0;
 
-
   RPiHTCam cam;
   RPiHTWebApp webapp;
   USBJoystick joystick;

@@ -22,7 +22,6 @@ public:
   Impl(RPiHTConfig &config, RPiHTCam &cam)
   {
 
-
     // Capture config by reference explicitly in the outer lambda
     CROW_ROUTE(webapp, "/")
       ([&config]()
@@ -48,31 +47,37 @@ public:
       QueryParser post = QueryParser(req.body);
       if (post.keys().size() > 0) // we are getting a valid response
       {
-        if (post.get("action") == "Save" ||  post.get("action") == "Set")
-          config.data.device_path = post.get("device");
-          config.data.ip = post.get("ip");
-          config.data.port = stoi(post.get("port"));
-          config.data.cam_height = stoi(post.get("cam_height"));
-          config.data.cam_width = stoi(post.get("cam_width"));
-          config.data.cam_framerate = stof(post.get("cam_framerate"));
-          config.data.cam_verbose = stob(post.get("cam_verbose"));
+        if (post.get("action") == "Save" || post.get("action") == "Set")
+        {
+          RPiHTConfigData tmp_config;
+          tmp_config.device_path = post.get("device");
+          tmp_config.ip = post.get("ip");
+          tmp_config.port = stoi(post.get("port"));
+          tmp_config.cam_height = stoi(post.get("cam_height"));
+          tmp_config.cam_width = stoi(post.get("cam_width"));
+          tmp_config.cam_framerate = stof(post.get("cam_framerate"));
+          tmp_config.cam_verbose = (post.get("cam_verbose") == "cam_verbose");
+          
+          config.set_data(tmp_config); // marks the config unsaved/inactive only if something changed
           if (post.get("action") == "Save")
           {
             config.save();
           }
-          else { // must be Set
+          else { // must be action "Set"
             reload_config = true;
           }
+        }
       }
+      const auto& data = config.get_data();
       auto page = crow::mustache::load("config.html");
       crow::mustache::context ctx({ {"title", "Configuration"},
-                                    {"device", config.data.device_path},
-                                    {"ip", config.data.ip},
-                                    {"port", config.data.port},
-                                    {"cam_height", config.data.cam_height},
-                                    {"cam_width", config.data.cam_width},
-                                    {"cam_framerate", config.data.cam_framerate},
-                                    {"cam_verbose", config.data.cam_verbose},
+                                    {"device", data.device_path},
+                                    {"ip", data.ip},
+                                    {"port", data.port},
+                                    {"cam_height", data.cam_height},
+                                    {"cam_width", data.cam_width},
+                                    {"cam_framerate", data.cam_framerate},
+                                    {"cam_verbose", data.cam_verbose ? "checked" : ""},
                                   });
       return page.render(ctx);
     });
@@ -103,7 +108,8 @@ public:
     //  return page.render(ctx); //
     //});
 
-    _a = webapp.bindaddr(config.data.ip).port(config.data.port).run_async();
+    // Signals are handled in main() so the whole app shuts down, not only the web server
+    _a = webapp.signal_clear().bindaddr(config.get_ip()).port(config.get_data().port).run_async();
   };
   ~Impl()
   {
