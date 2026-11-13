@@ -55,12 +55,12 @@ public:
           config.data.cam_height = stoi(post.get("cam_height"));
           config.data.cam_width = stoi(post.get("cam_width"));
           config.data.cam_framerate = stof(post.get("cam_framerate"));
-          config.data.cam_verbose = stob(post.get("cam_verbose"));
+          config.data.cam_verbose = (post.get("cam_verbose") == "cam_verbose");
           if (post.get("action") == "Save")
           {
             config.save();
           }
-          else { // must be Set
+          else { // must be action "Set"
             reload_config = true;
           }
       }
@@ -72,7 +72,7 @@ public:
                                     {"cam_height", config.data.cam_height},
                                     {"cam_width", config.data.cam_width},
                                     {"cam_framerate", config.data.cam_framerate},
-                                    {"cam_verbose", config.data.cam_verbose},
+                                    {"cam_verbose", config.data.cam_verbose ? "checked" : ""},
                                   });
       return page.render(ctx);
     });
