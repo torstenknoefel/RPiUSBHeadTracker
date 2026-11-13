@@ -14,6 +14,7 @@ using namespace std;
 #include <unistd.h>
 #include <math.h>
 
+#include <csignal>
 #include <filesystem>
 #include <iostream>
 #include <vector>
@@ -23,14 +24,30 @@ using namespace std;
 #include "RPiHTCam.h"
 
 std::atomic_bool run = true;    // we need this in either config or a separate status class,probably the latter:
-std::atomic_bool reload_config = false;                        // a struct in a header file and no code just two atomic bools, included at least in the main and the webapp
+std::atomic_bool reload_config = false;                        // a Class in a header file and getter and setters
+static_assert(std::atomic_bool::is_always_lock_free, "run/reload_config are set from a signal handler");
+
+// SIGINT/SIGTERM: leave the main loop and shut down cleanly (camera, web server, joystick device)
+extern "C" void handle_stop_signal(int)
+{
+  run = false;
+  reload_config = true;
+}
+
+static void install_signal_handlers()
+{
+  struct sigaction sa {};
+  sa.sa_handler = handle_stop_signal;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGTERM, &sa, nullptr);
+}
 
 RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig& config)
   : cam(config)
   , webapp(config, cam)
-  , joystick(config.data.device_path)
-{
-}
+  , joystick(config.get_device_path())
+{ }
 
 RPiUSBHeadTracker::~RPiUSBHeadTracker() = default;
 
@@ -38,7 +55,8 @@ void RPiUSBHeadTracker::run()
 {
   printf("Started Headtracker\n\r");
   reload_config = false;
-  while (not reload_config) { //while atomic_bool not_reload_config
+
+  while (::run && not reload_config) { // ::run is the global flag; plain "run" would be this member function
 
     // Basic Joystick
     throttle = (i >> 8) & 0xFF; // value -127 .. 128
@@ -71,7 +89,7 @@ void RPiUSBHeadTracker::run()
     angle += 3;
 
     joystick.update(throttle, rudder, x, y, buttons, hat);
-    sleep(0.1);
+    usleep(100000); // 100 ms; sleep() takes whole seconds, so sleep(0.1) was sleep(0)
   }
 
 
@@ -107,12 +125,15 @@ int main(int argc, char** argv) {
   printf("Current Configuration:\n\r");
   config.print();
 
+  install_signal_handlers();
 
   do
   {
     RPiUSBHeadTracker app(config);
+    config.set_active(true);
     app.run();
   } while (run);
 
+  printf("Headtracker stopped\n\r");
 }
 
