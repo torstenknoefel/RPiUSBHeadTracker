@@ -197,7 +197,9 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 
 ## Libraries
 
-CMake downloads these from GitHub (`FetchContent` in `CMakeLists.txt`). Each one is pinned to a fixed commit and checked against its SHA256, so every build uses exactly the same code. To update a library, change its commit and hash there.
+CMake downloads these from GitHub (`FetchContent` in `CMakeLists.txt`). Each one is pinned to a fixed commit and checked against its SHA256, so every build uses exactly the same code.
+
+Each library is downloaded from a fork under [github.com/torstenknoefel](https://github.com/torstenknoefel) first, and from the original repository only if that fails. The forks keep the pinned commits available even if an original repository is deleted or its history is rewritten. To update a library, click "Sync fork" on its fork, then change the commit and hash in `CMakeLists.txt`.
 
 | Library | Used for | Pinned commit |
 |---|---|---|
