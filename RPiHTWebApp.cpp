@@ -82,20 +82,21 @@ public:
       return page.render(ctx);
     });
 
-    // test CAM IMAGE
+    // Newest camera frame as JPEG. Takes a copy of the frame the camera thread
+    // keeps, so it never takes frames away from the head tracker.
     CROW_ROUTE(webapp, "/image")
-      ([&config,&cam]()
+      ([&cam]()
         {
-          auto image = cv::Mat(cam.height, cam.width, CV_8UC3);
-          cam.cam.getVideoFrame(image, 1000);
+          cv::Mat image;
+          if (!cam.latest(image))
+            return crow::response(503, "No camera frame yet");
           std::vector<uchar> buff;
           std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 90 };
           cv::imencode(".jpg", image, buff, params);
 
-
-
           auto response = crow::response(std::string(buff.begin(), buff.end()));
-          response.set_header("Content-Type", "application/octet-stream");
+          response.set_header("Content-Type", "image/jpeg");
+          response.set_header("Cache-Control", "no-store");
           return response;
         });
 
