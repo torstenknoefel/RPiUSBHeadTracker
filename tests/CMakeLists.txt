@@ -5,14 +5,19 @@ add_executable(rpiht_tests
   test_QueryParser.cpp
   test_RPiHTConfig.cpp
   test_USBJoystick.cpp
+  test_HeadPose.cpp
+  test_OneEuroFilter.cpp
+  test_JoystickMapping.cpp
   ${PROJECT_SOURCE_DIR}/QueryParser.cpp
   ${PROJECT_SOURCE_DIR}/RPiHTConfig.cpp
   ${PROJECT_SOURCE_DIR}/USBJoystick.cpp
+  ${PROJECT_SOURCE_DIR}/HeadPose.cpp
+  ${PROJECT_SOURCE_DIR}/JoystickMapping.cpp
 )
 
 set_property(TARGET rpiht_tests PROPERTY CXX_STANDARD 20)
-target_include_directories(rpiht_tests PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(rpiht_tests PRIVATE GTest::gtest_main taocpp::config)
+target_include_directories(rpiht_tests PRIVATE ${PROJECT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(rpiht_tests PRIVATE GTest::gtest_main taocpp::config ${OpenCV_LIBS})
 
 include(GoogleTest)
 gtest_discover_tests(rpiht_tests)

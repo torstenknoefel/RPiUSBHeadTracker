@@ -14,6 +14,8 @@ using namespace std;
 #include <unistd.h>
 #include <math.h>
 
+#include <algorithm>
+#include <chrono>
 #include <csignal>
 #include <filesystem>
 #include <iostream>
@@ -45,6 +47,7 @@ static void install_signal_handlers()
 
 RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig& config)
   : cam(config)
+  , tracker(cam, FACE_MODEL_PATH)
   , webapp(config, cam)
   , joystick(config.get_device_path())
 { }
@@ -56,62 +59,51 @@ void RPiUSBHeadTracker::run()
   printf("Started Headtracker\n\r");
   reload_config = false;
 
+  if (!tracker.ok())
+    printf("Head tracker not available (face model missing?) - joystick stays centred\n\r");
+
+  // Statistics for the log line every 10 s
+  using steady = std::chrono::steady_clock;
+  auto window_start = steady::now();
+  int states = 0, faces = 0;
+  double sum_processing = 0, sum_latency = 0, max_latency = 0;
+
+  uint64_t seq = 0;
+  TrackerState s;
+
   while (::run && not reload_config) { // ::run is the global flag; plain "run" would be this member function
 
-    // Basic Joystick
-    throttle = (i >> 8) & 0xFF; // value -127 .. 128
-    rudder = (i >> 8) & 0xFF;   // value -127 .. 128
+    if (tracker.ok()) {
+      // One joystick report per processed camera frame
+      if (tracker.wait_next(s, seq, std::chrono::milliseconds(200))) {
+        joystick.update(0, 0, s.x, s.y, 0, JOY_HAT_NEUTRAL);
+        ++states;
+        faces += s.face;
+        sum_processing += s.processing_ms;
+        sum_latency += s.latency_ms;
+        max_latency = std::max(max_latency, s.latency_ms);
+      }
+    }
+    else {
+      joystick.update(0, 0, 0, 0, 0, JOY_HAT_NEUTRAL);
+      usleep(100000);
+    }
 
-#if (BUTTONS4 == 1)
-    buttons = (i >> 8) & 0x0F;   // value    0 ..  15, one bit per button
-#endif
-#if (BUTTONS8 == 1)
-    buttons = (i >> 8) & 0xFF;   // value    0 .. 255, one bit per button
-#endif
-#if (BUTTONS32 == 1)
-    tmp = (i >> 8) & 0xFF;   // value    0 .. 255, one bit per button
-    buttons = ((tmp << 0) & 0x000000FF);
-    buttons = buttons | ((~tmp << 8) & 0x0000FF00);
-    buttons = buttons | ((tmp << 16) & 0x00FF0000);
-    buttons = buttons | ((~tmp << 24) & 0xFF000000);
-#endif
-
-#if (HAT4 == 1)
-    hat = (i >> 8) & 0x03;   // value 0, 1, 2, 3 or 4 for neutral
-#endif
-#if (HAT8 == 1)
-    hat = (i >> 8) & 0x07;   // value 0..7 or 8 for neutral
-#endif
-    i++;
-
-    x = cos((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
-    y = sin((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
-    angle += 3;
-
-    joystick.update(throttle, rudder, x, y, buttons, hat);
-
-    if (i % 100 == 0) // about every 10 s
-      printf("Camera: %.1f frames/s\n\r", cam.fps());
-
-    usleep(100000); // 100 ms; sleep() takes whole seconds, so sleep(0.1) was sleep(0)
+    const std::chrono::duration<double> elapsed = steady::now() - window_start;
+    if (elapsed.count() >= 10.0) {
+      printf("Camera: %.1f frames/s", cam.fps());
+      if (states > 0)
+        printf(" | Tracker: %.1f frames/s, face %d%%, processing %.1f ms, latency %.1f ms (max %.1f) | "
+               "yaw %.1f pitch %.1f -> x %d y %d%s",
+               states / elapsed.count(), 100 * faces / states, sum_processing / states,
+               sum_latency / states, max_latency, s.yaw, s.pitch, s.x, s.y, s.centred ? "" : " (centring)");
+      printf("\n\r");
+      fflush(stdout);
+      window_start = steady::now();
+      states = faces = 0;
+      sum_processing = sum_latency = max_latency = 0;
+    }
   }
-
-
-  // Advanced Joystick
- // hat = (1 >> 8) & 0x07;   // value 0..7 or 8 for neutral
- // tmp = (1 >> 8) & 0xFF;   // value    0 .. 255, one bit per button
- // buttons = ((tmp << 0) & 0x000000FF);
- // buttons = buttons | ((~tmp << 8) & 0x0000FF00);
- // buttons = buttons | ((tmp << 16) & 0x00FF0000);
- // buttons = buttons | ((~tmp << 24) & 0xFF000000);
- // for (angle = 0; angle < 360; angle += 5) {
- //   x = cos((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
- //   y = sin((double)angle * 3.14 / 180.0) * radius;  // value -127 .. 128
- //   throttle = (sin((double)angle * 3.14 / 180.0) + 1) * 127; // value   0 .. 255
- //   rudder = (cos((double)angle * 3.14 / 180.0) + 1) * 127;   // value   0 .. 255()
- //   joystick.update(throttle, rudder, x, y, buttons, hat);
- //   usleep(100000);
-//  }
 }
 
 int main(int argc, char** argv) {

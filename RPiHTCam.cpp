@@ -47,6 +47,7 @@ void RPiHTCam::capture_loop()
     {
       std::lock_guard<std::mutex> lock(mtx);
       std::swap(newest, frame); // no copy; 'frame' is reallocated by the next getVideoFrame if needed
+      newest_time = clock::now();
       ++seq_;
     }
     new_frame.notify_all();
@@ -73,7 +74,8 @@ bool RPiHTCam::latest(cv::Mat& frame, uint64_t* seq) const
   return true;
 }
 
-bool RPiHTCam::wait_next(cv::Mat& frame, uint64_t& last_seq, std::chrono::milliseconds timeout) const
+bool RPiHTCam::wait_next(cv::Mat& frame, uint64_t& last_seq, std::chrono::milliseconds timeout,
+                         std::chrono::steady_clock::time_point* captured) const
 {
   std::unique_lock<std::mutex> lock(mtx);
   if (!new_frame.wait_for(lock, timeout, [&] { return seq_ > last_seq || !running; }))
@@ -82,5 +84,7 @@ bool RPiHTCam::wait_next(cv::Mat& frame, uint64_t& last_seq, std::chrono::millis
     return false; // stopping
   newest.copyTo(frame);
   last_seq = seq_;
+  if (captured)
+    *captured = newest_time;
   return true;
 }

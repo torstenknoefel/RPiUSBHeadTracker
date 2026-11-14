@@ -4,7 +4,7 @@ A Raspberry Pi head tracker that a PC sees as an ordinary USB joystick.
 
 The Pi is plugged into the PC with a USB cable. It registers as a USB game controller, so games and simulators that can use a joystick need no extra driver or software. A camera on the Pi watches the player, and the program turns the camera picture into joystick movements. A small web interface lets you check the camera picture and change the settings from any browser.
 
-> **Status: work in progress.** The USB joystick, the camera and the web interface work. The actual head tracking (turning the camera picture into X/Y values) is not written yet. For now the joystick sends a test pattern: the stick moves in a circle and the buttons change, so you can check that the PC receives it.
+> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. The settings for the tracking (sensitivity, dead zone, smoothing) and a button to set the centre position are not in the web interface yet.
 
 ## How it works
 
@@ -15,7 +15,8 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 ```
 
 - **USB joystick:** `headtracker_device.sh` turns the Pi's USB port into a HID joystick (Linux USB gadget). The program writes joystick reports to `/dev/hidg0`: two axes (X, Y, each −127 … 127) and 32 buttons.
-- **Camera:** read through libcamera and OpenCV (via the LCCV library).
+- **Camera:** read through libcamera and OpenCV (via the LCCV library), in its own thread.
+- **Head tracking:** for every camera frame, a small face detection model (YuNet) finds the face and five points on it (eyes, nose tip, mouth corners). From these points the program works out how far the head is turned (yaw) and tilted (pitch), smooths the values and turns them into joystick X and Y. See [Head tracking](#head-tracking).
 - **Web interface:** a small built-in web server (Crow) with three pages: Status, Adjust and Config.
 
 ## What you need
@@ -55,7 +56,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
-The first `cmake` run needs an internet connection: it downloads the libraries listed under [Libraries](#libraries) into `build/_deps`. Later builds in the same build folder use these copies.
+The first `cmake` run needs an internet connection: it downloads the libraries listed under [Libraries](#libraries) into `build/_deps`, and the face detection model into `build/models`. Later builds in the same build folder use these copies.
 
 ### 4. Create the USB joystick
 
@@ -156,13 +157,24 @@ The Help entry in the menu has no page yet.
 
 ## Checking the joystick on the PC
 
-On Windows, press **Win+R**, type `joy.cpl` and press Enter. "RaspberryPi Head Tracker" appears in the list of game controllers. Open **Properties** to watch the axes and buttons move. With the current test pattern the crosshair moves in a circle.
+On Windows, press **Win+R**, type `joy.cpl` and press Enter. "RaspberryPi Head Tracker" appears in the list of game controllers. Open **Properties** to watch the axes move: turning your head moves the crosshair left and right, tilting it moves the crosshair up and down.
 
 On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 
+## Head tracking
+
+- **Centre position:** after the start, the program averages the head position over the first 15 frames with a face and uses it as "straight ahead". Look straight at the screen while the program starts. The log shows `Head tracker: centre set …`.
+- **Range:** 20° of head turn or tilt gives full joystick deflection. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still.
+- **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
+- **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
+- **Speed:** on a Pi 4 the tracker keeps up with the camera at 60 frames per second. From a camera frame to the joystick values takes about 10 ms.
+- **Log:** every 10 s the program writes a line like `Camera: 60.0 frames/s | Tracker: 60.0 frames/s, face 100%, processing 8.7 ms, latency 9.3 ms …`.
+
+The face model (YuNet, 2022 version, MIT licence) comes from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo). CMake downloads it at configure time and checks it against its SHA256. The newer 2023 version of the model needs OpenCV 4.8; Debian bookworm has 4.6.
+
 ## Unit tests
 
-The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file and the joystick reports. They are built automatically when `libgtest-dev` is installed:
+The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter and the conversion to joystick values. They are built automatically when `libgtest-dev` is installed:
 
 ```bash
 ninja -C build
@@ -187,7 +199,11 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 |---|---|
 | `RPiUSBHeadTracker.cpp` | Main program and main loop. |
 | `USBJoystick.*` | Writes the joystick reports to `/dev/hidg0`. |
-| `RPiHTCam.*` | Camera access. |
+| `RPiHTCam.*` | Camera access; reads every frame in its own thread. |
+| `HeadTracker.*` | Finds the face in each frame and produces the joystick values. |
+| `HeadPose.*` | Head angles from the five face points. |
+| `OneEuroFilter.h` | Smoothing filter. |
+| `JoystickMapping.*` | Head angle → joystick value (range, dead zone, curve). |
 | `RPiHTWebApp.*` | Web interface and its routes. |
 | `RPiHTConfig.*` | Reads and writes the config file. |
 | `QueryParser.*` | Reads the values sent by the Config form. |

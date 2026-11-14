@@ -28,8 +28,10 @@ public:
   bool latest(cv::Mat& frame, uint64_t* seq = nullptr) const;
 
   // Waits until a frame newer than 'last_seq' arrives, copies it and updates
-  // 'last_seq'. Returns false on timeout or when the camera stops.
-  bool wait_next(cv::Mat& frame, uint64_t& last_seq, std::chrono::milliseconds timeout) const;
+  // 'last_seq'. 'captured' (optional) receives the time the frame arrived from
+  // the camera. Returns false on timeout or when the camera stops.
+  bool wait_next(cv::Mat& frame, uint64_t& last_seq, std::chrono::milliseconds timeout,
+                 std::chrono::steady_clock::time_point* captured = nullptr) const;
 
   // Frames per second delivered by the camera, averaged over about one second.
   double fps() const { return fps_.load(); }
@@ -50,4 +52,5 @@ private:
   mutable std::condition_variable new_frame;
   cv::Mat newest;    // guarded by mtx
   uint64_t seq_ = 0; // guarded by mtx; 0 = no frame yet
+  std::chrono::steady_clock::time_point newest_time; // guarded by mtx
 };
