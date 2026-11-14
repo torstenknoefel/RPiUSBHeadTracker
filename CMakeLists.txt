@@ -51,4 +51,16 @@ target_link_libraries(${PROJECT_NAME} PRIVATE libssl.a ${OpenCV_LIBS} liblccv.so
 
 
 
-# TODO: Add tests and install targets if needed.
+# Unit tests (GoogleTest; on the Pi: sudo apt install libgtest-dev). Run with: ctest --test-dir <build dir>
+option(RPIHT_BUILD_TESTS "Build the unit tests" ON)
+if (RPIHT_BUILD_TESTS)
+  find_package(GTest QUIET)
+  if (GTest_FOUND)
+    enable_testing()
+    add_subdirectory(tests)
+  else()
+    message(STATUS "GoogleTest not found - unit tests are not built")
+  endif()
+endif()
+
+# TODO: Add install targets if needed.
