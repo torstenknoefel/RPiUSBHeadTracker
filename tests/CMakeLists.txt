@@ -11,8 +11,8 @@ add_executable(rpiht_tests
 )
 
 set_property(TARGET rpiht_tests PROPERTY CXX_STANDARD 20)
-target_include_directories(rpiht_tests PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/include)
-target_link_libraries(rpiht_tests PRIVATE GTest::gtest_main)
+target_include_directories(rpiht_tests PRIVATE ${PROJECT_SOURCE_DIR})
+target_link_libraries(rpiht_tests PRIVATE GTest::gtest_main taocpp::config)
 
 include(GoogleTest)
 gtest_discover_tests(rpiht_tests)
