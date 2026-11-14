@@ -12,7 +12,7 @@ endif()
 project (RPiUSBHeadTracker LANGUAGES CXX)
 add_compile_definitions(ASIO_STANDALONE)
 # Add source to this project's executable.
-add_executable (RPiUSBHeadTracker "RPiUSBHeadTracker.cpp" "RPiUSBHeadTracker.h" "USBJoystick.h" "USBJoystick.cpp" "RPiHTWebServer.cpp" "RPiHTConfig.h" "RPiHTConfig.cpp" "RPiHTWebApp.h" "RPiHTWebApp.cpp" "QueryParser.h" "QueryParser.cpp"  "RPiHTCam.cpp" "RPiHTCam.h" "CmdParser.h")
+add_executable (RPiUSBHeadTracker "RPiUSBHeadTracker.cpp" "RPiUSBHeadTracker.h" "USBJoystick.h" "USBJoystick.cpp" "RPiHTWebServer.cpp" "RPiHTConfig.h" "RPiHTConfig.cpp" "RPiHTWebApp.h" "RPiHTWebApp.cpp" "QueryParser.h" "QueryParser.cpp"  "RPiHTCam.cpp" "RPiHTCam.h" "CmdParser.h" "HeadTracker.h" "HeadTracker.cpp" "HeadPose.h" "HeadPose.cpp" "JoystickMapping.h" "JoystickMapping.cpp" "OneEuroFilter.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RPiUSBHeadTracker PROPERTY CXX_STANDARD 20)
@@ -67,6 +67,33 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(BUILD_SHARED_LIBS OFF)
 
 FetchContent_MakeAvailable(pegtl taocpp-json taocpp-config crow lccv)
+
+# Face detection model for the head tracker: YuNet, 2022 version (the 2023
+# version needs OpenCV 4.8; Debian bookworm has 4.6). From the OpenCV model zoo
+# (MIT licence), stored with Git LFS, pinned to a commit and checked by SHA256.
+# Downloaded into <build dir>/models, where the program loads it from.
+set(FACE_MODEL_FILE "${CMAKE_CURRENT_BINARY_DIR}/models/face_detection_yunet_2022mar.onnx")
+set(FACE_MODEL_SHA256 50ef07f702a31741ca46a4c0d947773b64143b9362780237bf0d427d6c79bab7)
+set(FACE_MODEL_URLS
+  https://media.githubusercontent.com/media/opencv/opencv_zoo/7e062e54cf5410c09b795ff71b4a255e58498c79/models/face_detection_yunet/face_detection_yunet_2022mar.onnx
+)
+if (EXISTS "${FACE_MODEL_FILE}")
+  file(SHA256 "${FACE_MODEL_FILE}" _face_model_hash)
+endif()
+if (NOT _face_model_hash STREQUAL FACE_MODEL_SHA256)
+  foreach(_url IN LISTS FACE_MODEL_URLS)
+    message(STATUS "Downloading face model from ${_url}")
+    file(DOWNLOAD "${_url}" "${FACE_MODEL_FILE}" EXPECTED_HASH SHA256=${FACE_MODEL_SHA256} STATUS _status)
+    list(GET _status 0 _code)
+    if (_code EQUAL 0)
+      break()
+    endif()
+    message(WARNING "Face model download failed: ${_status}")
+  endforeach()
+  if (NOT _code EQUAL 0)
+    message(WARNING "No face model - the head tracker will not work")
+  endif()
+endif()
 
 find_package( OpenCV REQUIRED )
 

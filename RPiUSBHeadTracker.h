@@ -8,24 +8,21 @@
 #include "RPiHTConfig.h"
 #include "RPiHTWebApp.h"
 #include "RPiHTCam.h"
+#include "HeadTracker.h"
 #include "USBJoystick.h"
+
+// Face model for the head tracker, downloaded by CMake into the build folder.
+// Like the web pages it is loaded relative to the folder the program runs in.
+#define FACE_MODEL_PATH "models/face_detection_yunet_2022mar.onnx"
 
 class RPiUSBHeadTracker
 {
 
 public:
-  uint16_t i = 0;
-  int16_t throttle = 0;
-  int16_t rudder = 0;
-  int16_t x = 0;
-  int16_t y = 0;
-  int32_t radius = 120;
-  int32_t angle = 0;
-  uint8_t tmp = 0;
-  uint32_t buttons = 0;
-  uint8_t hat = 0;
-
+  // Members are created in this order and destroyed in reverse:
+  // the tracker stops before the camera it reads from.
   RPiHTCam cam;
+  HeadTracker tracker;
   RPiHTWebApp webapp;
   USBJoystick joystick;
   RPiUSBHeadTracker(RPiHTConfig &config);
