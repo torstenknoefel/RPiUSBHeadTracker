@@ -4,7 +4,7 @@ A Raspberry Pi head tracker that a PC sees as an ordinary USB joystick.
 
 The Pi is plugged into the PC with a USB cable. It registers as a USB game controller, so games and simulators that can use a joystick need no extra driver or software. A camera on the Pi watches the player, and the program turns the camera picture into joystick movements. A small web interface lets you check the camera picture and change the settings from any browser.
 
-> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. The settings for the tracking (sensitivity, dead zone, smoothing) and a button to set the centre position are not in the web interface yet.
+> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Sensitivity, dead zone and smoothing are set on the Config page; the Status page shows the tracker live and has a Centre button. The program does not start automatically at boot yet.
 
 ## How it works
 
@@ -90,6 +90,12 @@ The program reads its settings from `/etc/USBHT.json`, or from the file given wi
 | `cam_width`, `cam_height` | Camera picture size in pixels. |
 | `cam_framerate` | Camera frames per second. |
 | `cam_verbose` | `true` writes detailed camera messages to the log. |
+| `track_range_x`, `track_range_y` | Degrees of head turn (X) or tilt (Y) for full joystick deflection. Optional, default 20. |
+| `track_deadzone` | Degrees around the centre that give 0. Optional, default 1.5. |
+| `track_curve` | 1 = linear; above 1 finer near the centre and faster towards the edge. Optional, default 1. |
+| `track_smoothing` | Smoothing while the head is still, in Hz: lower = calmer, but more lag. Optional, default 1. |
+| `track_speed` | How quickly the smoothing lets fast movements through: higher = less lag. Optional, default 0.05. |
+| `track_invert_x`, `track_invert_y` | `true` reverses the direction of X or Y. Optional, default `false`. |
 
 When you press **Save** in the web interface, the program writes this file itself and adds the keys `saved` and `active`. Your user needs write permission for the file.
 
@@ -117,13 +123,22 @@ Open `http://<address of the Pi>:18080` in a browser on the PC or on a phone in 
 
 ![Status page](docs/images/status.jpg)
 
-The start page. It is a placeholder for now; later it will show the tracker's state.
+The start page shows the tracker live, about five times per second:
+
+- whether a face is found and the centre position is set ("Tracking", "No face found", "Setting the centre …"),
+- the joystick position as a dot in a square,
+- head turn and tilt in degrees, joystick X and Y,
+- camera and tracker frames per second, processing time and the time from camera frame to joystick values.
+
+**Centre:** look straight at the screen and press it; the head position of the next frames becomes "straight ahead". The program also does this by itself after every start.
+
+The same data is available as JSON at `/state`; `POST /centre` does what the button does. (The screenshot still shows the old placeholder page.)
 
 ### Adjust
 
 ![Adjust page with the live camera picture](docs/images/adjust.jpg)
 
-Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. The picture is also available on its own at `/image`.
+Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box and five red points show where the tracker finds the face, eyes, nose tip and mouth corners. Below the picture are the tracker state and the Centre button. The picture is also available on its own at `/image`.
 
 ### Config
 
@@ -140,6 +155,12 @@ All settings from the config file in one form.
 | **Verbose Log** | Writes detailed camera messages to the log. |
 | **Width**, **Height** | Camera picture size in pixels. |
 | **Framerate** | Camera frames per second. |
+| **Range left/right**, **Range up/down** | Head turn or tilt (degrees) for full joystick deflection. Smaller = more sensitive. |
+| **Dead zone** | Movements this small (degrees) around the centre give 0. |
+| **Curve** | 1 = linear. Above 1: finer near the centre, faster towards the edge. |
+| **Smoothing** | Lower = calmer when holding still, but more lag. |
+| **Follow speed** | Higher = less lag on fast head movements. |
+| **Invert left/right**, **Invert up/down** | Reverse the direction of X or Y. |
 
 The buttons:
 
@@ -163,8 +184,8 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 
 ## Head tracking
 
-- **Centre position:** after the start, the program averages the head position over the first 15 frames with a face and uses it as "straight ahead". Look straight at the screen while the program starts. The log shows `Head tracker: centre set …`.
-- **Range:** 20° of head turn or tilt gives full joystick deflection. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still.
+- **Centre position:** after the start, and when you press **Centre** on the Status or Adjust page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
+- **Range:** by default 20° of head turn or tilt gives full joystick deflection. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page; **Apply** restarts the tracker with the new values.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
 - **Speed:** on a Pi 4 the tracker keeps up with the camera at 60 frames per second. From a camera frame to the joystick values takes about 10 ms.

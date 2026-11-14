@@ -1,3 +1,4 @@
+#include <iomanip>
 #include <regex>
 
 #include "crow.h"
@@ -16,11 +17,74 @@ bool stob(std::string str) {
   return b;
 }
 
+// Number from the form; 'fallback' if the field is missing or not a number
+// (an old page in the browser cache may not send the newer fields).
+static double form_number(QueryParser& post, const std::string& key, double fallback)
+{
+  try {
+    return std::stod(post.get(key));
+  }
+  catch (const std::exception&) {
+    return fallback;
+  }
+}
+
+// Short text for a number in the form ("0.05", not "0.050000000000000003")
+static std::string number_text(double v)
+{
+  std::ostringstream os;
+  os << std::setprecision(6) << v;
+  return os.str();
+}
+
+// Tracker state as JSON for the Status and Adjust pages
+static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
+{
+  crow::json::wvalue j;
+  j["face"] = s.face;
+  j["centred"] = s.centred;
+  j["yaw"] = s.yaw;
+  j["pitch"] = s.pitch;
+  j["x"] = int(s.x);
+  j["y"] = int(s.y);
+  j["fps"] = s.fps;
+  j["camera_fps"] = camera_fps;
+  j["processing_ms"] = s.processing_ms;
+  j["latency_ms"] = s.latency_ms;
+  j["frame"]["width"] = s.frame_size.width;
+  j["frame"]["height"] = s.frame_size.height;
+  if (s.face) {
+    j["box"] = crow::json::wvalue::list({ s.box.x, s.box.y, s.box.width, s.box.height });
+    crow::json::wvalue::list points;
+    for (const auto& p : s.points)
+      points.push_back(crow::json::wvalue::list({ p.x, p.y }));
+    j["points"] = std::move(points);
+  }
+  return j;
+}
+
 class RPiHTWebApp::Impl
 {
 public:
-  Impl(RPiHTConfig &config, RPiHTCam &cam)
+  Impl(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker)
   {
+    // Tracker state for the Status and Adjust pages (polled several times per second)
+    CROW_ROUTE(webapp, "/state")
+      ([&cam, &tracker]()
+        {
+          auto response = crow::response(state_json(tracker.state(), cam.fps()));
+          response.set_header("Cache-Control", "no-store");
+          return response;
+        });
+
+    // Centre button: the next head position becomes "straight ahead"
+    CROW_ROUTE(webapp, "/centre").methods("POST"_method)
+      ([&tracker]()
+        {
+          tracker.recentre();
+          return crow::response(204);
+        });
+
 
     // Capture config by reference explicitly in the outer lambda
     CROW_ROUTE(webapp, "/")
@@ -57,7 +121,16 @@ public:
           tmp_config.cam_width = stoi(post.get("cam_width"));
           tmp_config.cam_framerate = stof(post.get("cam_framerate"));
           tmp_config.cam_verbose = (post.get("cam_verbose") == "cam_verbose");
-          
+          const auto& current = config.get_data();
+          tmp_config.track_range_x = form_number(post, "track_range_x", current.track_range_x);
+          tmp_config.track_range_y = form_number(post, "track_range_y", current.track_range_y);
+          tmp_config.track_deadzone = form_number(post, "track_deadzone", current.track_deadzone);
+          tmp_config.track_curve = form_number(post, "track_curve", current.track_curve);
+          tmp_config.track_smoothing = form_number(post, "track_smoothing", current.track_smoothing);
+          tmp_config.track_speed = form_number(post, "track_speed", current.track_speed);
+          tmp_config.track_invert_x = (post.get("track_invert_x") == "track_invert_x");
+          tmp_config.track_invert_y = (post.get("track_invert_y") == "track_invert_y");
+
           config.set_data(tmp_config); // marks the config unsaved/inactive only if something changed
           if (post.get("action") == "Save")
           {
@@ -78,6 +151,14 @@ public:
                                     {"cam_width", data.cam_width},
                                     {"cam_framerate", data.cam_framerate},
                                     {"cam_verbose", data.cam_verbose ? "checked" : ""},
+                                    {"track_range_x", number_text(data.track_range_x)},
+                                    {"track_range_y", number_text(data.track_range_y)},
+                                    {"track_deadzone", number_text(data.track_deadzone)},
+                                    {"track_curve", number_text(data.track_curve)},
+                                    {"track_smoothing", number_text(data.track_smoothing)},
+                                    {"track_speed", number_text(data.track_speed)},
+                                    {"track_invert_x", data.track_invert_x ? "checked" : ""},
+                                    {"track_invert_y", data.track_invert_y ? "checked" : ""},
                                   });
       return page.render(ctx);
     });
@@ -123,7 +204,8 @@ private:
 };
 
 
-RPiHTWebApp::RPiHTWebApp(RPiHTConfig &config, RPiHTCam &cam) : pImpl(std::make_unique<Impl>(config, cam))
+RPiHTWebApp::RPiHTWebApp(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker)
+  : pImpl(std::make_unique<Impl>(config, cam, tracker))
 {};
 
 RPiHTWebApp::~RPiHTWebApp() = default;

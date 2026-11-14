@@ -84,12 +84,23 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
 
   // 2. Head angles from the five points, in full-frame pixels
   HeadPose pose;
+  FacePoints pts{};
+  cv::Rect2f box;
   if (best >= 0) {
     const double sx = double(frame.cols) / small.cols, sy = double(frame.rows) / small.rows;
-    FacePoints pts;
     for (int k = 0; k < 5; ++k)
       pts[k] = { faces.at<float>(best, 4 + 2 * k) * sx, faces.at<float>(best, 5 + 2 * k) * sy };
+    box = { float(faces.at<float>(best, 0) * sx), float(faces.at<float>(best, 1) * sy),
+            float(faces.at<float>(best, 2) * sx), float(faces.at<float>(best, 3) * sy) };
     pose = solve_head_pose(pts, frame.size());
+  }
+
+  ++fps_count_;
+  const std::chrono::duration<double> fps_elapsed = started - fps_start_;
+  if (fps_elapsed.count() >= 1.0) {
+    fps_ = fps_count_ / fps_elapsed.count();
+    fps_count_ = 0;
+    fps_start_ = started;
   }
 
   // 3. Centre, filter, joystick values
@@ -153,6 +164,10 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
     state_.y = y;
     state_.processing_ms = ms_since(started);
     state_.latency_ms = ms_since(captured);
+    state_.fps = fps_;
+    state_.frame_size = frame.size();
+    state_.box = box;
+    state_.points = pts;
   }
   updated_.notify_all();
 }

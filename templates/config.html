@@ -6,6 +6,10 @@
 </head>
 <body>
     {{> menu.html}}
+    <style>
+        /* Room for the help text under a field before the next field's label */
+        .field:has(> .helper) { margin-bottom: 2rem; }
+    </style>
     <main class="responsive">
        
 
@@ -48,6 +52,47 @@
                     <label>Framerate</label>
                 </div>
 
+            </fieldset>
+            <fieldset class="border round label">
+                <legend>Head tracking</legend>
+                <div class="field border label">
+                    <input type="number" id="track_range_x" name="track_range_x" value="{{track_range_x}}" min="1" max="90" step="0.5" />
+                    <label>Range left/right (°)</label>
+                    <span class="helper">Head turn for full joystick deflection. Smaller = more sensitive.</span>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="track_range_y" name="track_range_y" value="{{track_range_y}}" min="1" max="90" step="0.5" />
+                    <label>Range up/down (°)</label>
+                    <span class="helper">Head tilt for full joystick deflection.</span>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="track_deadzone" name="track_deadzone" value="{{track_deadzone}}" min="0" max="20" step="0.1" />
+                    <label>Dead zone (°)</label>
+                    <span class="helper">Movements this small around the centre give 0.</span>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="track_curve" name="track_curve" value="{{track_curve}}" min="0.1" max="5" step="0.1" />
+                    <label>Curve</label>
+                    <span class="helper">1 = linear. Above 1: finer near the centre, faster towards the edge.</span>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="track_smoothing" name="track_smoothing" value="{{track_smoothing}}" min="0.05" max="20" step="0.05" />
+                    <label>Smoothing (Hz)</label>
+                    <span class="helper">Lower = calmer when holding still, but more lag. Default 1.</span>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="track_speed" name="track_speed" value="{{track_speed}}" min="0" max="2" step="0.01" />
+                    <label>Follow speed</label>
+                    <span class="helper">Higher = less lag on fast head movements. Default 0.05.</span>
+                </div>
+                <label class="checkbox">
+                    <input type="checkbox" id="track_invert_x" name="track_invert_x" value="track_invert_x" {{track_invert_x}} />
+                    <span>Invert left/right</span>
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" id="track_invert_y" name="track_invert_y" value="track_invert_y" {{track_invert_y}} />
+                    <span>Invert up/down</span>
+                </label>
             </fieldset>
             <nav class="center-align">
                 <button type="reset" value="Reset">

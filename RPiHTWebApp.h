@@ -2,12 +2,13 @@
 
 #include "RPiHTConfig.h"
 #include "RPiHTCam.h"
+#include "HeadTracker.h"
 
 
 class RPiHTWebApp
 {
 public:
-  RPiHTWebApp(RPiHTConfig &config, RPiHTCam &cam);
+  RPiHTWebApp(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker);
   ~RPiHTWebApp();
 
 private:
