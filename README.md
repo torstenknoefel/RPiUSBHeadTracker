@@ -116,19 +116,19 @@ Open `http://<address of the Pi>:18080` in a browser on the PC or on a phone in 
 
 ### Status
 
-![Status page](docs/images/status.png)
+![Status page](docs/images/status.jpg)
 
 The start page. It is a placeholder for now; later it will show the tracker's state.
 
 ### Adjust
 
-![Adjust page with the live camera picture](docs/images/adjust.png)
+![Adjust page with the live camera picture](docs/images/adjust.jpg)
 
 Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. The picture is also available on its own at `/image`.
 
 ### Config
 
-![Config page](docs/images/config.png)
+![Config page](docs/images/config.jpg)
 
 All settings from the config file in one form.
 
@@ -150,7 +150,7 @@ The buttons:
 
 On a phone the form uses the whole width and the menu is at the bottom:
 
-<img src="docs/images/config-phone.png" alt="Config page on a phone" width="300">
+<img src="docs/images/config-phone.jpg" alt="Config page on a phone" width="300">
 
 ### Help
 
