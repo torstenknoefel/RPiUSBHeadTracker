@@ -15,7 +15,7 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 ```
 
 - **USB joystick:** `headtracker_device.sh` turns the Pi's USB port into a HID joystick (Linux USB gadget). The program writes joystick reports to `/dev/hidg0`: two axes (X, Y, each −127 … 127) and 32 buttons.
-- **Camera:** read through libcamera and OpenCV (via the included LCCV library).
+- **Camera:** read through libcamera and OpenCV (via the LCCV library).
 - **Web interface:** a small built-in web server (Crow) with three pages: Status, Adjust and Config.
 
 ## What you need
@@ -37,8 +37,10 @@ dtoverlay=dwc2,dr_mode=peripheral
 ### 2. Install the build tools and libraries
 
 ```bash
-sudo apt install cmake ninja-build g++ libopencv-dev libcamera-dev libssl-dev
+sudo apt install cmake ninja-build g++ libopencv-dev libcamera-dev libssl-dev libasio-dev
 ```
+
+CMake 3.24 or newer is needed (bookworm has 3.25).
 
 Optional, for the unit tests:
 
@@ -53,11 +55,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
-The program loads the LCCV camera library at run time, so install it once after the first build:
-
-```bash
-sudo cmake --install build/LCCV && sudo ldconfig
-```
+The first `cmake` run needs an internet connection: it downloads the libraries listed under [Libraries](#libraries) into `build/_deps`. Later builds in the same build folder use these copies.
 
 ### 4. Create the USB joystick
 
@@ -196,4 +194,15 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `templates/`, `static/` | Web pages and style sheets. |
 | `headtracker_device.sh` | Creates the USB joystick. |
 | `tests/` | Unit tests. |
-| `LCCV/`, `crow/`, `include/` | Included libraries: camera (LCCV), web server (Crow), JSON and config (taocpp). |
+
+## Libraries
+
+CMake downloads these from GitHub (`FetchContent` in `CMakeLists.txt`). Each one is pinned to a fixed commit and checked against its SHA256, so every build uses exactly the same code. To update a library, change its commit and hash there.
+
+| Library | Used for | Pinned commit |
+|---|---|---|
+| [Crow](https://github.com/CrowCpp/Crow) | Web server | `6ba7d7f` (master, 2025-10-10) |
+| [taocpp/config](https://github.com/taocpp/config) | Reading the config file | `93a455e` (main, 2024-04-13) |
+| [taocpp/json](https://github.com/taocpp/json) | JSON, used by config | `11a31e1` (main, 2025-03-11) |
+| [taocpp/PEGTL](https://github.com/taocpp/PEGTL) | Parser, used by json | `54a2e32` (main, 2025-05-18) |
+| [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
