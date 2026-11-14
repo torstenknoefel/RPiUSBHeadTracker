@@ -89,6 +89,10 @@ void RPiUSBHeadTracker::run()
     angle += 3;
 
     joystick.update(throttle, rudder, x, y, buttons, hat);
+
+    if (i % 100 == 0) // about every 10 s
+      printf("Camera: %.1f frames/s\n\r", cam.fps());
+
     usleep(100000); // 100 ms; sleep() takes whole seconds, so sleep(0.1) was sleep(0)
   }
 

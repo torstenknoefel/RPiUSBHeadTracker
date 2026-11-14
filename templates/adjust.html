@@ -6,26 +6,48 @@
 </head>
 <body>
     {{> menu.html}}
+    <style>
+        /* Show the whole camera picture: full width up to the camera's own size,
+           height from the picture's aspect ratio, nothing cropped. */
+        #camera {
+            display: block;
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            object-fit: contain;
+        }
+    </style>
     <main class="responsive">
-        <img src="/image" class="responsive round medium-height" alt="Camera" id="myimg">
+        <img src="/image" class="round" alt="Camera" id="camera">
     </main>
-        <script>
-            var org = document.getElementById("myimg").src;
+    <script>
+        // Load the next picture only when the previous one has arrived, at most
+        // about 10 per second. Requests never pile up on a slow connection, and
+        // the picture is swapped only once it is complete (no flicker).
+        const camera = document.getElementById("camera");
+        const interval = 100; // ms between pictures
+        let shown = null;     // object URL of the picture on screen
 
-            setInterval(function () {
-                refreshImg();
-            }, 100);
-            // 2000 = 2 seconds, change to whatever you like
-
-            function refreshImg() {
-                document.getElementById("myimg").src = org + '?' + new Date().getTime();
-                // //var x = document.querySelectorAll("body > img");
-                //for (var i = x.length - 1; i >= 0; i--) {
-                //  x[i].src = o[i] + '?' + new Date().getTime();
-                //console.log(x[i].src);
-                // };
+        async function load() {
+            const started = Date.now();
+            try {
+                const response = await fetch("/image", { cache: "no-store" });
+                if (!response.ok) throw new Error(response.status);
+                const url = URL.createObjectURL(await response.blob());
+                await new Promise((resolve, reject) => {
+                    camera.onload = resolve;
+                    camera.onerror = reject;
+                    camera.src = url;
+                });
+                if (shown) URL.revokeObjectURL(shown);
+                shown = url;
+                setTimeout(load, Math.max(0, interval - (Date.now() - started)));
+            } catch (e) {
+                setTimeout(load, 1000); // camera not ready or program restarting
             }
-        </script>
+        }
+        load();
+    </script>
 </body>
 </html>
 
