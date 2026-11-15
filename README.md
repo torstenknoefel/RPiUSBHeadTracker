@@ -120,6 +120,18 @@ Stop it with **Ctrl+C**, or `pkill -x RPiUSBHeadTrack` from another terminal. Th
 
 Open `http://<address of the Pi>:18080` in a browser on the PC or on a phone in the same network. The menu on the left switches between the pages. On a phone the menu moves to the bottom of the screen.
 
+### Status bar
+
+Every page starts with a bar that shows whether the settings are saved and in use:
+
+| Bar | Meaning | Buttons |
+|---|---|---|
+| Green: **Settings saved and in use** | The program runs with the values from the config file. | – |
+| Amber: **Changed settings in use – not saved** | You changed head tracking values. They are lost when the program restarts. | **Save** writes them to the file. **Back to saved** returns to the values in the file. |
+| Amber: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Restart now** |
+| Blue: **Restarting with the new settings …** | Camera, web server and joystick start again. | – |
+| Red: **No connection to the head tracker** | The program is not running or the network is down. | – |
+
 ### Status
 
 ![Status page](docs/images/status.jpg)
@@ -133,7 +145,7 @@ The start page shows the tracker live, about five times per second:
 
 **Centre:** look straight at the screen and press it; the head position of the next frames becomes "straight ahead". The program also does this by itself after every start.
 
-The same data is available as JSON at `/state`; `POST /centre` does what the button does.
+The same data is available as JSON at `/state`; `POST /centre` does what the button does. The status bar uses `/status` (`saved`, `active`); `POST /tracking` (head tracking values as form fields), `POST /save`, `POST /revert` and `POST /restart` do what the Config page and the status bar buttons do.
 
 ### Adjust
 
@@ -145,30 +157,35 @@ Shows the live camera picture, updated about ten times per second. Use it to aim
 
 ![Config page](docs/images/config.jpg)
 
-All settings from the config file in one form.
+The page has two parts.
 
-| Field | Meaning |
+**Head tracking:** every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the blue line is the current setting, the grey band the dead zone, and the red dot shows where your head is now and what the joystick sends. Move a slider and the line changes at once.
+
+| Setting | Meaning |
 |---|---|
-| **Joystick device** | The USB joystick device, normally `/dev/hidg0`. |
-| **Web Server Address** | Address the web interface listens on (`0.0.0.0` = all). |
-| **Web Server Port** | Port of the web interface. |
-| **Device No** | Camera number. Not used yet; the first camera is always used. |
-| **Verbose Log** | Writes detailed camera messages to the log. |
-| **Width**, **Height** | Camera picture size in pixels. |
-| **Framerate** | Camera frames per second. |
 | **Range left/right**, **Range up/down** | Head turn or tilt (degrees) for full joystick deflection. Smaller = more sensitive. |
 | **Dead zone** | Movements this small (degrees) around the centre give 0. |
-| **Curve** | 1 = linear. Above 1: finer near the centre, faster towards the edge. |
+| **Curve** | 1 = straight line. Above 1: finer near the centre, faster towards the edge. |
 | **Smoothing** | Lower = calmer when holding still, but more lag. |
 | **Follow speed** | Higher = less lag on fast head movements. |
 | **Invert left/right**, **Invert up/down** | Reverse the direction of X or Y. |
 | **Face detection size** | Size the camera picture is shrunk to for finding the face. Larger = steadier, above all up/down, but more processing time (shown on the Status page). |
 
-The buttons:
+**Defaults** sets all head tracking values back to the program's defaults. Changed values are not saved until you press **Save** in the status bar; **Back to saved** there returns to the values in the file.
 
-- **Reset** puts the form back to the values it showed when the page was loaded. Nothing is sent to the Pi.
-- **Apply** uses the new values right away: the program restarts the camera, the web server and the joystick with them. They are not saved, so after a restart of the program the old values from the file are back. If you change the port, the web interface moves to the new port, so open it there.
-- **Save** writes the values to the config file. They are used from the next **Apply** or the next start of the program.
+**Camera and connection:** these need a restart.
+
+| Field | Meaning |
+|---|---|
+| **Camera width**, **Camera height** | Camera picture size in pixels. |
+| **Camera frames per second** | Camera frames per second. |
+| **Detailed camera log** | Writes detailed camera messages to the log. |
+| **Joystick device** (Advanced) | The USB joystick device, normally `/dev/hidg0`. |
+| **Web server address**, **Web server port** (Advanced) | Address and port the web interface listens on (`0.0.0.0` = all). After a port change, open the web interface at the new port. |
+
+- **Undo edits** puts these fields back to the values the page showed when it was loaded.
+- **Restart with these** restarts camera, web server and joystick with the new values. They are not saved yet; the status bar shows that.
+- **Save** writes all values to the config file. Camera and connection values are used after the next restart.
 
 On a phone the form uses the whole width and the menu is at the bottom:
 
@@ -187,7 +204,7 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 ## Head tracking
 
 - **Centre position:** after the start, and when you press **Centre** on the Status or Adjust page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
-- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because the five face points show a nod less clearly than a turn, so nods measure smaller than they are. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page; **Apply** restarts the tracker with the new values.
+- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because the five face points show a nod less clearly than a turn, so nods measure smaller than they are. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page and are used right away.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
 - **Face detection size:** the camera picture is shrunk before the face is searched. The default 256 × 192 keeps the face points steady; at 160 × 120 the up/down value jitters about five times as much when you hold still, but processing is faster. Change it on the Config page.
@@ -226,6 +243,7 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `USBJoystick.*` | Writes the joystick reports to `/dev/hidg0`. |
 | `RPiHTCam.*` | Camera access; reads every frame in its own thread. |
 | `HeadTracker.*` | Finds the face in each frame and produces the joystick values. |
+| `TrackerSettings.*` | Tracker settings from the config values. |
 | `HeadPose.*` | Head angles from the five face points. |
 | `OneEuroFilter.h` | Smoothing filter. |
 | `JoystickMapping.*` | Head angle → joystick value (range, dead zone, curve). |

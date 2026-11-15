@@ -13,19 +13,7 @@
 #include "JoystickMapping.h"
 #include "OneEuroFilter.h"
 #include "RPiHTCam.h"
-
-struct TrackerSettings
-{
-  cv::Size detect_size{ 256, 192 }; // frames are shrunk to this size for YuNet
-  float min_score = 0.6f;           // YuNet confidence for a face
-  int centre_frames = 15;           // frames averaged for the centre position
-  AxisMapping x{};                  // head turn (yaw)   -> X
-  AxisMapping y{};                  // head tilt (pitch) -> Y
-  double filter_min_cutoff = 1.0;   // OneEuroFilter, see OneEuroFilter.h
-  double filter_beta = 0.05;
-  double lost_hold = 0.5;           // s the last value is held when the face is lost
-  double lost_fade = 1.0;           // s to return to the centre after that
-};
+#include "TrackerSettings.h"
 
 struct TrackerState
 {
@@ -62,6 +50,9 @@ public:
   // The next head position is used as the new centre.
   void recentre();
 
+  // New settings, used from the next camera frame on (no restart, the centre stays).
+  void update_settings(const TrackerSettings& settings);
+
   TrackerState state() const;
 
   // Waits for a state newer than 'last_seq'. Returns false on timeout.
@@ -90,6 +81,9 @@ private:
   std::chrono::steady_clock::time_point fps_start_ = std::chrono::steady_clock::now();
 
   std::atomic_bool recentre_{ true };
+  std::mutex settings_mtx_;
+  TrackerSettings new_settings_;           // guarded by settings_mtx_
+  std::atomic_bool settings_changed_{ false };
   mutable std::mutex mtx_;
   mutable std::condition_variable updated_;
   TrackerState state_; // guarded by mtx_

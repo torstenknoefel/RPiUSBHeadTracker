@@ -282,3 +282,89 @@ TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
   EXPECT_EQ(d.track_detect_width, 192);
   EXPECT_EQ(d.port, 18080);  // other values unchanged
 }
+
+// Head tracking values change while the program runs; the rest needs a restart
+
+TEST_F(RPiHTConfigTest, SameSystemAndSameTrackingSplitTheValues)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData a = config.get_data(), b = a;
+  b.track_range_x = 33;
+  EXPECT_TRUE(a.same_system(b));
+  EXPECT_FALSE(a.same_tracking(b));
+  b = a;
+  b.cam_framerate = 30;
+  EXPECT_FALSE(a.same_system(b));
+  EXPECT_TRUE(a.same_tracking(b));
+  b = a;
+  b.port = 1;
+  EXPECT_FALSE(a.same_system(b));
+}
+
+TEST_F(RPiHTConfigTest, CopyTrackingTakesOnlyTrackingValues)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData a = config.get_data(), b = a;
+  b.track_range_y = 7;
+  b.track_invert_x = true;
+  b.track_detect_width = 160;
+  b.port = 1;
+  a.copy_tracking(b);
+  EXPECT_TRUE(a.same_tracking(b));
+  EXPECT_EQ(a.port, 18080);
+}
+
+TEST_F(RPiHTConfigTest, SetTrackingKeepsActiveAndClearsSaved)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData t = config.get_data();
+  t.track_deadzone = 3;
+  t.port = 1;  // ignored: not a head tracking value
+  config.set_tracking(t);
+  EXPECT_DOUBLE_EQ(config.get_data().track_deadzone, 3);
+  EXPECT_EQ(config.get_data().port, 18080);
+  EXPECT_FALSE(config.get_data().is_saved);
+  EXPECT_TRUE(config.get_data().is_active);
+}
+
+TEST_F(RPiHTConfigTest, SetTrackingWithSameValuesKeepsSaved)
+{
+  RPiHTConfig config(path);
+  config.set_tracking(config.get_data());
+  EXPECT_TRUE(config.get_data().is_saved);
+}
+
+TEST_F(RPiHTConfigTest, ReadSavedLeavesTheCurrentValues)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData t = config.get_data();
+  t.track_range_x = 40;
+  config.set_tracking(t);
+
+  RPiHTConfigData saved;
+  ASSERT_TRUE(config.read_saved(saved));
+  EXPECT_DOUBLE_EQ(saved.track_range_x, 20.0);              // file: default
+  EXPECT_DOUBLE_EQ(config.get_data().track_range_x, 40.0);  // current: unchanged
+}
+
+TEST_F(RPiHTConfigTest, ReloadGoesBackToTheSavedValues)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData t = config.get_data();
+  t.track_range_x = 40;
+  config.set_tracking(t);
+  ASSERT_TRUE(config.reload());
+  EXPECT_DOUBLE_EQ(config.get_data().track_range_x, 20.0);
+  EXPECT_TRUE(config.get_data().is_saved);
+}
+
+TEST_F(RPiHTConfigTest, ReloadOfAMissingFileKeepsTheValues)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData t = config.get_data();
+  t.track_range_x = 40;
+  config.set_tracking(t);
+  std::filesystem::remove(path);
+  EXPECT_FALSE(config.reload());
+  EXPECT_DOUBLE_EQ(config.get_data().track_range_x, 40.0);
+}

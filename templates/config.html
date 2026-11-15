@@ -10,82 +10,89 @@
         /* Room for the help text under a field before the next field's label
            (BeerCSS leaves 2rem below every field; the help text needs more) */
         .field:has(> .helper) { margin-bottom: 3.25rem; }
+
+        .graphs { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 16px 0; }
+        .graph { flex: 1 1 260px; max-width: 360px; }
+        .graph svg { width: 100%; height: auto; display: block; }
+        .graph h6 { margin: 0 0 4px 0; font-size: 1rem; }
+        .graph .axis { stroke: var(--outline); stroke-width: 1; }
+        .graph .grid { stroke: var(--outline-variant); stroke-width: 1; stroke-dasharray: 3 3; }
+        .graph .dead { fill: var(--outline-variant); opacity: 0.5; }
+        .graph .curve { fill: none; stroke: var(--primary); stroke-width: 2.5; }
+        .graph .dot { fill: #ff5252; }
+        .graph text { fill: var(--on-surface-variant); font-size: 11px; }
+
+        .setting { margin: 0 0 18px 0; }
+        .setting .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+        .setting .value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+        .setting input[type=range] { width: 100%; }
+        .setting .help { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
+        .switches { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 8px 0 16px 0; }
+        .switches label { display: flex; align-items: center; gap: 12px; }
+        .live-note { display: flex; align-items: center; gap: 6px; opacity: 0.85; margin: 0 0 12px 0; }
     </style>
     <main class="responsive">
-       
+        {{> statusbar.html}}
 
-        <form action="/config" method="post">
-            <fieldset class="border round label">
-                <legend>System</legend>
-                <div class="field border  label">
-                    <input type="text" id="device" name="device" value="{{device}}" />
-                    <label>Joystick device</label>
-                </div>
-                <div class="field border  label">
-                    <input type="text" id="ip" name="ip" value="{{ip}}" />
-                    <label>Web Server Address</label>
-                </div>
-                <div class="field border  label">
-                    <input type="number" id="port" name="port" value="{{port}}" />
-                    <label>Web Server Port</label>
-                </div>
-            </fieldset>
-            <fieldset class="border round label">
-                <legend>Camera</legend>
-                <div class="field border  label">
-                    <input type="number" id="cam" name="cam" value="{{cam}}" />
-                    <label>Device No</label>
-                </div>
-                <label class="checkbox">
-                    <input type="checkbox" id="cam_verbose" name="cam_verbose" value="cam_verbose" {{cam_verbose}} />
-                    <span>Verbose Log</span>
-                </label>
-                <div class="field border  label">
-                    <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" />
-                    <label>Width</label>
-                </div>
-                <div class="field border  label">
-                    <input type="number" id="cam_height" name="cam_height" value="{{cam_height}}" />
-                    <label>Height</label>
-                </div>
-                <div class="field border  label">
-                    <input type="number" id="cam_frate" name="cam_framerate" value="{{cam_framerate}}" />
-                    <label>Framerate</label>
-                </div>
-
-            </fieldset>
+        <!-- Head tracking: every change is used right away (no restart) -->
+        <form id="tracking" onsubmit="return false">
             <fieldset class="border round label">
                 <legend>Head tracking</legend>
-                <div class="field border label">
-                    <input type="number" id="track_range_x" name="track_range_x" value="{{track_range_x}}" min="1" max="90" step="0.5" />
-                    <label>Range left/right (°)</label>
-                    <span class="helper">Head turn for full joystick deflection. Smaller = more sensitive.</span>
+                <p class="live-note small-text"><i class="small">bolt</i>Changes are used right away. Move your head and watch the red dot.</p>
+
+                <div class="graphs">
+                    <div class="graph">
+                        <h6>Left / right</h6>
+                        <svg id="graph_x" viewBox="0 0 300 170" aria-label="Head turn to joystick X"></svg>
+                    </div>
+                    <div class="graph">
+                        <h6>Up / down</h6>
+                        <svg id="graph_y" viewBox="0 0 300 170" aria-label="Head tilt to joystick Y"></svg>
+                    </div>
                 </div>
-                <div class="field border label">
-                    <input type="number" id="track_range_y" name="track_range_y" value="{{track_range_y}}" min="1" max="90" step="0.5" />
-                    <label>Range up/down (°)</label>
-                    <span class="helper">Head tilt for full joystick deflection. Nods measure smaller than turns, so this is lower.</span>
+
+                <div class="setting">
+                    <div class="head"><label for="track_range_x">Range left/right</label><span class="value" id="track_range_x_v"></span></div>
+                    <input type="range" id="track_range_x" name="track_range_x" min="2" max="60" step="0.5" value="{{track_range_x}}" />
+                    <div class="help">Head turn for full joystick deflection. Smaller = more sensitive.</div>
                 </div>
-                <div class="field border label">
-                    <input type="number" id="track_deadzone" name="track_deadzone" value="{{track_deadzone}}" min="0" max="20" step="0.1" />
-                    <label>Dead zone (°)</label>
-                    <span class="helper">Movements this small around the centre give 0.</span>
+                <div class="setting">
+                    <div class="head"><label for="track_range_y">Range up/down</label><span class="value" id="track_range_y_v"></span></div>
+                    <input type="range" id="track_range_y" name="track_range_y" min="2" max="60" step="0.5" value="{{track_range_y}}" />
+                    <div class="help">Head tilt for full joystick deflection. Nods measure smaller than turns, so this is usually lower.</div>
                 </div>
-                <div class="field border label">
-                    <input type="number" id="track_curve" name="track_curve" value="{{track_curve}}" min="0.1" max="5" step="0.1" />
-                    <label>Curve</label>
-                    <span class="helper">1 = linear. Above 1: finer near the centre, faster towards the edge.</span>
+                <div class="setting">
+                    <div class="head"><label for="track_deadzone">Dead zone</label><span class="value" id="track_deadzone_v"></span></div>
+                    <input type="range" id="track_deadzone" name="track_deadzone" min="0" max="10" step="0.1" value="{{track_deadzone}}" />
+                    <div class="help">Movements this small around the centre give 0 (grey band in the graphs).</div>
                 </div>
-                <div class="field border label">
-                    <input type="number" id="track_smoothing" name="track_smoothing" value="{{track_smoothing}}" min="0.05" max="20" step="0.05" />
-                    <label>Smoothing (Hz)</label>
-                    <span class="helper">Lower = calmer when holding still, but more lag. Default 1.</span>
+                <div class="setting">
+                    <div class="head"><label for="track_curve">Curve</label><span class="value" id="track_curve_v"></span></div>
+                    <input type="range" id="track_curve" name="track_curve" min="0.3" max="3" step="0.1" value="{{track_curve}}" />
+                    <div class="help">1 = straight line. Above 1: finer near the centre, faster towards the edge.</div>
                 </div>
-                <div class="field border label">
-                    <input type="number" id="track_speed" name="track_speed" value="{{track_speed}}" min="0" max="2" step="0.01" />
-                    <label>Follow speed</label>
-                    <span class="helper">Higher = less lag on fast head movements. Default 0.05.</span>
+                <div class="setting">
+                    <div class="head"><label for="track_smoothing">Smoothing</label><span class="value" id="track_smoothing_v"></span></div>
+                    <input type="range" id="track_smoothing" name="track_smoothing" min="0.05" max="5" step="0.05" value="{{track_smoothing}}" />
+                    <div class="help">Lower = calmer when you hold still, but more lag. Default 1 Hz.</div>
                 </div>
+                <div class="setting">
+                    <div class="head"><label for="track_speed">Follow speed</label><span class="value" id="track_speed_v"></span></div>
+                    <input type="range" id="track_speed" name="track_speed" min="0" max="0.5" step="0.01" value="{{track_speed}}" />
+                    <div class="help">Higher = less lag on fast head movements. Default 0.05.</div>
+                </div>
+
+                <div class="switches">
+                    <label class="switch-row">
+                        <span class="switch"><input type="checkbox" id="track_invert_x" name="track_invert_x" {{track_invert_x}} /><span></span></span>
+                        <span>Invert left/right</span>
+                    </label>
+                    <label class="switch-row">
+                        <span class="switch"><input type="checkbox" id="track_invert_y" name="track_invert_y" {{track_invert_y}} /><span></span></span>
+                        <span>Invert up/down</span>
+                    </label>
+                </div>
+
                 <div class="field border label">
                     <select id="track_detect_width" name="track_detect_width">
                         {{#track_detect_options}}
@@ -94,35 +101,197 @@
                     </select>
                     <label>Face detection size</label>
                     <i>arrow_drop_down</i>
-                    <span class="helper">Larger = steadier, above all up/down, but more processing time. See the Status page.</span>
+                    <span class="helper">Larger = steadier, above all up/down, but more processing time (see the Status page).</span>
+                </div>
+
+                <nav>
+                    <button type="button" class="border" id="defaults">
+                        <i>settings_backup_restore</i>
+                        <span>Defaults</span>
+                    </button>
+                </nav>
+            </fieldset>
+        </form>
+
+        <!-- Camera, web server, joystick: used after a restart -->
+        <form action="/config" method="post">
+            <fieldset class="border round label">
+                <legend>Camera and connection</legend>
+                <p class="live-note small-text"><i class="small">restart_alt</i>These are used after a restart: press <b>Restart with these</b>, or <b>Save</b> to use them from the next start.</p>
+                <div class="field border label">
+                    <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" />
+                    <label>Camera width</label>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="cam_height" name="cam_height" value="{{cam_height}}" />
+                    <label>Camera height</label>
+                </div>
+                <div class="field border label">
+                    <input type="number" id="cam_frate" name="cam_framerate" value="{{cam_framerate}}" />
+                    <label>Camera frames per second</label>
                 </div>
                 <label class="checkbox">
-                    <input type="checkbox" id="track_invert_x" name="track_invert_x" value="track_invert_x" {{track_invert_x}} />
-                    <span>Invert left/right</span>
+                    <input type="checkbox" id="cam_verbose" name="cam_verbose" value="cam_verbose" {{cam_verbose}} />
+                    <span>Detailed camera log</span>
                 </label>
-                <label class="checkbox">
-                    <input type="checkbox" id="track_invert_y" name="track_invert_y" value="track_invert_y" {{track_invert_y}} />
-                    <span>Invert up/down</span>
-                </label>
+
+                <details>
+                    <summary class="small-text">Advanced: joystick device and web server</summary>
+                    <p class="small-text">Wrong values here can make the joystick or this web page unreachable.</p>
+                    <div class="field border label">
+                        <input type="text" id="device" name="device" value="{{device}}" />
+                        <label>Joystick device</label>
+                    </div>
+                    <div class="field border label">
+                        <input type="text" id="ip" name="ip" value="{{ip}}" />
+                        <label>Web server address</label>
+                    </div>
+                    <div class="field border label">
+                        <input type="number" id="port" name="port" value="{{port}}" />
+                        <label>Web server port</label>
+                        <span class="helper">After a change, open the web page at the new port.</span>
+                    </div>
+                </details>
+
+                <nav>
+                    <button type="reset" class="border">
+                        <i>undo</i>
+                        <span>Undo edits</span>
+                    </button>
+                    <button type="submit" name="action" value="Set">
+                        <i>restart_alt</i>
+                        <span>Restart with these</span>
+                    </button>
+                    <button type="submit" name="action" value="Save">
+                        <i>save</i>
+                        <span>Save</span>
+                    </button>
+                </nav>
             </fieldset>
-            <nav class="center-align">
-                <button type="reset" value="Reset">
-                    <i>reset_settings</i>
-                    <span>Reset</span>
-                </button>
-                <button type="submit" name="action" value="Set">
-                    <i>rule_settings</i>
-                    <span>Apply</span>
-                </button>
-
-                <button type="submit" name="action" value="Save">
-                    <i>save</i>
-                    <span>Save</span>
-                </button>
-            </nav>
-
         </form>
-       
     </main>
+    <script>
+        const el = id => document.getElementById(id);
+        const sliders = ["track_range_x", "track_range_y", "track_deadzone", "track_curve", "track_smoothing", "track_speed"];
+        const units = { track_range_x: "°", track_range_y: "°", track_deadzone: "°", track_curve: "", track_smoothing: " Hz", track_speed: "" };
+        const defaults = { track_range_x: 20, track_range_y: 10, track_deadzone: 1.5, track_curve: 1, track_smoothing: 1,
+                           track_speed: 0.05, track_invert_x: false, track_invert_y: false, track_detect_width: 256 };
+
+        // Same as map_axis() in JoystickMapping.cpp: head angle -> -127 ... 127
+        function mapAxis(angle, m) {
+            if (m.invert) angle = -angle;
+            const magnitude = Math.abs(angle) - m.deadzone;
+            if (magnitude <= 0) return 0;
+            const span = Math.max(m.range - m.deadzone, 1e-6);
+            const n = Math.pow(Math.min(magnitude / span, 1), Math.max(m.curve, 0.1));
+            const v = Math.round(n * 127);
+            return angle < 0 ? -v : v;
+        }
+
+        function mapping(axis) {
+            return {
+                range: +el("track_range_" + axis).value,
+                deadzone: +el("track_deadzone").value,
+                curve: +el("track_curve").value,
+                invert: el("track_invert_" + axis).checked,
+            };
+        }
+
+        // Graph: head angle (horizontal) -> joystick value (vertical)
+        const W = 300, H = 170, L = 34, R = 8, T = 8, B = 22;
+        const ns = "http://www.w3.org/2000/svg";
+        function shape(name, attrs, text) {
+            const e = document.createElementNS(ns, name);
+            for (const k in attrs) e.setAttribute(k, attrs[k]);
+            if (text !== undefined) e.textContent = text;
+            return e;
+        }
+        const graphs = {};
+        function drawGraph(axis) {
+            const svg = el("graph_" + axis), m = mapping(axis);
+            const maxAngle = Math.max(10, Math.ceil(m.range * 1.3 / 5) * 5);
+            const sx = a => L + (a + maxAngle) / (2 * maxAngle) * (W - L - R);
+            const sy = v => T + (127 - v) / 254 * (H - T - B);
+            // Up/down: joystick "up" is drawn upwards (HID sends negative Y for up)
+            const value = axis === "x" ? a => mapAxis(a, m) : a => -mapAxis(-a, m);
+            svg.replaceChildren();
+            svg.appendChild(shape("rect", { class: "dead", x: sx(-m.deadzone), y: T, width: sx(m.deadzone) - sx(-m.deadzone), height: H - T - B }));
+            for (const v of [-127, 127]) svg.appendChild(shape("line", { class: "grid", x1: L, x2: W - R, y1: sy(v), y2: sy(v) }));
+            for (const a of [-m.range, m.range]) svg.appendChild(shape("line", { class: "grid", x1: sx(a), x2: sx(a), y1: T, y2: H - B }));
+            svg.appendChild(shape("line", { class: "axis", x1: L, x2: W - R, y1: sy(0), y2: sy(0) }));
+            svg.appendChild(shape("line", { class: "axis", x1: sx(0), x2: sx(0), y1: T, y2: H - B }));
+            const pts = [];
+            for (let i = 0; i <= 200; ++i) {
+                const a = -maxAngle + i * maxAngle / 100;
+                pts.push(sx(a).toFixed(1) + "," + sy(value(a)).toFixed(1));
+            }
+            svg.appendChild(shape("polyline", { class: "curve", points: pts.join(" ") }));
+            svg.appendChild(shape("text", { x: L - 4, y: sy(127) + 4, "text-anchor": "end" }, "127"));
+            svg.appendChild(shape("text", { x: L - 4, y: sy(-127) + 4, "text-anchor": "end" }, "−127"));
+            svg.appendChild(shape("text", { x: sx(-maxAngle), y: H - 6 }, "−" + maxAngle + "°"));
+            svg.appendChild(shape("text", { x: sx(maxAngle), y: H - 6, "text-anchor": "end" }, maxAngle + "°"));
+            svg.appendChild(shape("text", { x: sx(0), y: H - 6, "text-anchor": "middle" }, axis === "x" ? "turn" : "tilt"));
+            const dot = shape("circle", { class: "dot", r: 5, cx: sx(0), cy: sy(0), visibility: "hidden" });
+            svg.appendChild(dot);
+            graphs[axis] = { dot, sx, sy, maxAngle };
+        }
+
+        function showValues() {
+            for (const id of sliders) el(id + "_v").textContent = (+el(id).value) + units[id];
+            drawGraph("x");
+            drawGraph("y");
+        }
+
+        // Send the head tracking values; the tracker uses them from the next frame
+        let timer = null;
+        function sendSoon() { clearTimeout(timer); timer = setTimeout(send, 150); }
+        async function send() {
+            const body = new URLSearchParams();
+            for (const id of sliders) body.append(id, el(id).value);
+            body.append("track_invert_x", el("track_invert_x").checked);
+            body.append("track_invert_y", el("track_invert_y").checked);
+            body.append("track_detect_width", el("track_detect_width").value);
+            try {
+                const r = await fetch("/tracking", { method: "POST", body });
+                if (r.ok && window.htStatus) window.htStatus(await r.json());
+            } catch (e) { /* the status bar shows the lost connection */ }
+        }
+
+        for (const id of sliders)
+            el(id).addEventListener("input", () => { showValues(); sendSoon(); });
+        for (const id of ["track_invert_x", "track_invert_y", "track_detect_width"])
+            el(id).addEventListener("change", () => { showValues(); send(); });
+
+        el("defaults").addEventListener("click", () => {
+            for (const id of sliders) el(id).value = defaults[id];
+            el("track_invert_x").checked = defaults.track_invert_x;
+            el("track_invert_y").checked = defaults.track_invert_y;
+            el("track_detect_width").value = defaults.track_detect_width;
+            showValues();
+            send();
+        });
+
+        // Live dot: where the head is now and what the joystick sends
+        async function live() {
+            try {
+                const r = await fetch("/state", { cache: "no-store" });
+                const s = await r.json();
+                const place = (axis, angle, value) => {
+                    const g = graphs[axis];
+                    if (!g) return;
+                    const a = Math.max(-g.maxAngle, Math.min(g.maxAngle, angle));
+                    g.dot.setAttribute("cx", g.sx(a));
+                    g.dot.setAttribute("cy", g.sy(value));
+                    g.dot.setAttribute("visibility", s.face && s.centred ? "visible" : "hidden");
+                };
+                place("x", s.yaw, s.x);
+                place("y", s.pitch, -s.y);
+            } catch (e) { /* no connection: the dots stay where they are */ }
+            setTimeout(live, 100);
+        }
+
+        showValues();
+        live();
+    </script>
 </body>
 </html>
