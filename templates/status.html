@@ -6,10 +6,81 @@
 </head>
 <body class="dark">
     {{> menu.html}}
+    <style>
+        .status-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+        .stick {
+            position: relative; width: 200px; height: 200px; flex: none;
+            border: 2px solid var(--outline); border-radius: 12px;
+        }
+        .stick::before, .stick::after { content: ""; position: absolute; background: var(--outline-variant); }
+        .stick::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+        .stick::after { top: 50%; left: 0; right: 0; height: 1px; }
+        .stick .dot {
+            position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
+            background: var(--primary); left: 50%; top: 50%; z-index: 1;
+        }
+        .values { width: auto; min-width: 260px; }
+        .values td { padding: 4px 8px; }
+        .values td:first-child { padding-right: 16px; opacity: 0.8; }
+        .values td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+    </style>
     <main class="responsive">
-        <img src="https://www.beercss.com/beer-and-woman.svg" class="responsive round  medium-height">
-        <h3>Welcome</h3>
-        <h5>The beer is ready!</h5>
+        <h5>Head tracker</h5>
+        <p><span class="chip" id="state">Waiting for the tracker …</span></p>
+        <div class="status-grid">
+            <div class="stick" title="Joystick position"><div class="dot" id="dot"></div></div>
+            <table class="values">
+                <tr><td>Head turn (yaw)</td><td id="yaw">–</td></tr>
+                <tr><td>Head tilt (pitch)</td><td id="pitch">–</td></tr>
+                <tr><td>Joystick X</td><td id="x">–</td></tr>
+                <tr><td>Joystick Y</td><td id="y">–</td></tr>
+                <tr><td>Camera</td><td id="camera_fps">–</td></tr>
+                <tr><td>Tracker</td><td id="fps">–</td></tr>
+                <tr><td>Processing</td><td id="processing">–</td></tr>
+                <tr><td>Frame → joystick</td><td id="latency">–</td></tr>
+            </table>
+        </div>
+        <nav>
+            <button id="centre" title="Look straight at the screen, then press">
+                <i>center_focus_strong</i>
+                <span>Centre</span>
+            </button>
+        </nav>
+        <p class="small-text">Look straight at the screen and press <b>Centre</b> to set "straight ahead". The program also does this by itself after every start.</p>
     </main>
+    <script>
+        const el = id => document.getElementById(id);
+        const deg = v => v.toFixed(1) + "°";
+
+        async function update() {
+            try {
+                const r = await fetch("/state", { cache: "no-store" });
+                if (!r.ok) throw new Error(r.status);
+                const s = await r.json();
+                el("state").textContent = !s.face ? "No face found" : (s.centred ? "Tracking" : "Setting the centre …");
+                el("state").className = "chip " + (s.face && s.centred ? "primary" : "error");
+                el("yaw").textContent = deg(s.yaw);
+                el("pitch").textContent = deg(s.pitch);
+                el("x").textContent = s.x;
+                el("y").textContent = s.y;
+                el("camera_fps").textContent = s.camera_fps.toFixed(1) + " frames/s";
+                el("fps").textContent = s.fps.toFixed(1) + " frames/s";
+                el("processing").textContent = s.processing_ms.toFixed(1) + " ms";
+                el("latency").textContent = s.latency_ms.toFixed(1) + " ms";
+                // -127 … 127 -> 0 … 100 %; HID: negative Y is up
+                el("dot").style.left = (50 + s.x / 127 * 50) + "%";
+                el("dot").style.top = (50 + s.y / 127 * 50) + "%";
+            } catch (e) {
+                el("state").textContent = "No connection to the tracker";
+                el("state").className = "chip error";
+            }
+            setTimeout(update, 200);
+        }
+        update();
+
+        el("centre").addEventListener("click", async () => {
+            await fetch("/centre", { method: "POST" });
+        });
+    </script>
 </body>
 </html>

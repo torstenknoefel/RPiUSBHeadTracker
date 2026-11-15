@@ -25,6 +25,14 @@ namespace tao::json
     TAO_JSON_BIND_REQUIRED("cam_framerate", &RPiHTConfigData::cam_framerate),
     TAO_JSON_BIND_REQUIRED("cam_verbose", &RPiHTConfigData::cam_verbose),
     TAO_JSON_BIND_REQUIRED("port", &RPiHTConfigData::port),
+    TAO_JSON_BIND_OPTIONAL("track_range_x", &RPiHTConfigData::track_range_x),
+    TAO_JSON_BIND_OPTIONAL("track_range_y", &RPiHTConfigData::track_range_y),
+    TAO_JSON_BIND_OPTIONAL("track_deadzone", &RPiHTConfigData::track_deadzone),
+    TAO_JSON_BIND_OPTIONAL("track_curve", &RPiHTConfigData::track_curve),
+    TAO_JSON_BIND_OPTIONAL("track_smoothing", &RPiHTConfigData::track_smoothing),
+    TAO_JSON_BIND_OPTIONAL("track_speed", &RPiHTConfigData::track_speed),
+    TAO_JSON_BIND_OPTIONAL("track_invert_x", &RPiHTConfigData::track_invert_x),
+    TAO_JSON_BIND_OPTIONAL("track_invert_y", &RPiHTConfigData::track_invert_y),
     TAO_JSON_BIND_OPTIONAL("saved", &RPiHTConfigData::is_saved),
     TAO_JSON_BIND_OPTIONAL("active", &RPiHTConfigData::is_active)
   >

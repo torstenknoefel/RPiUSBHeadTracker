@@ -194,3 +194,82 @@ TEST_F(RPiHTConfigTest, MalformedFileDoesNotThrow)
   auto bad = dir.write("bad.json", "{ this is not json").string();
   EXPECT_NO_THROW({ RPiHTConfig config(bad); });
 }
+
+// Head tracking settings: optional in the file, with defaults
+
+TEST_F(RPiHTConfigTest, TrackingSettingsDefaultWhenMissing)
+{
+  RPiHTConfig config(path);  // kConfigJson has no track_* keys
+  const auto& d = config.get_data();
+  EXPECT_DOUBLE_EQ(d.track_range_x, 20.0);
+  EXPECT_DOUBLE_EQ(d.track_range_y, 20.0);
+  EXPECT_DOUBLE_EQ(d.track_deadzone, 1.5);
+  EXPECT_DOUBLE_EQ(d.track_curve, 1.0);
+  EXPECT_DOUBLE_EQ(d.track_smoothing, 1.0);
+  EXPECT_DOUBLE_EQ(d.track_speed, 0.05);
+  EXPECT_FALSE(d.track_invert_x);
+  EXPECT_FALSE(d.track_invert_y);
+}
+
+TEST_F(RPiHTConfigTest, TrackingSettingsLoadFromFile)
+{
+  auto p = dir.write("tracking.json", R"({ "device": "/dev/hidg0", "port": 1, "cam_width": 1,
+    "cam_height": 1, "cam_framerate": 1.0, "cam_verbose": false,
+    "track_range_x": 15, "track_range_y": 12.5, "track_deadzone": 2.0, "track_curve": 1.5,
+    "track_smoothing": 0.5, "track_speed": 0.1, "track_invert_x": true, "track_invert_y": false })").string();
+  RPiHTConfig config(p);
+  const auto& d = config.get_data();
+  EXPECT_DOUBLE_EQ(d.track_range_x, 15.0);  // whole number in the file
+  EXPECT_DOUBLE_EQ(d.track_range_y, 12.5);
+  EXPECT_DOUBLE_EQ(d.track_deadzone, 2.0);
+  EXPECT_DOUBLE_EQ(d.track_curve, 1.5);
+  EXPECT_DOUBLE_EQ(d.track_smoothing, 0.5);
+  EXPECT_DOUBLE_EQ(d.track_speed, 0.1);
+  EXPECT_TRUE(d.track_invert_x);
+  EXPECT_FALSE(d.track_invert_y);
+}
+
+TEST_F(RPiHTConfigTest, ChangedTrackingSettingCountsAsChange)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData changed = config.get_data();
+  changed.track_range_x = 30.0;
+  EXPECT_FALSE(changed == config.get_data());
+  config.set_data(changed);
+  EXPECT_DOUBLE_EQ(config.get_data().track_range_x, 30.0);
+  EXPECT_FALSE(config.get_data().is_saved);
+
+  RPiHTConfigData inverted = config.get_data();
+  inverted.track_invert_y = true;
+  EXPECT_FALSE(inverted == config.get_data());
+}
+
+TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
+{
+  {
+    RPiHTConfig config(path);
+    RPiHTConfigData changed = config.get_data();
+    changed.track_range_x = 25.0;
+    changed.track_range_y = 18.0;
+    changed.track_deadzone = 0.5;
+    changed.track_curve = 2.0;
+    changed.track_smoothing = 0.8;
+    changed.track_speed = 0.2;
+    changed.track_invert_x = false;
+    changed.track_invert_y = true;
+    config.set_data(changed);
+    config.save();
+  }
+
+  RPiHTConfig reloaded(path);
+  const auto& d = reloaded.get_data();
+  EXPECT_DOUBLE_EQ(d.track_range_x, 25.0);
+  EXPECT_DOUBLE_EQ(d.track_range_y, 18.0);
+  EXPECT_DOUBLE_EQ(d.track_deadzone, 0.5);
+  EXPECT_DOUBLE_EQ(d.track_curve, 2.0);
+  EXPECT_DOUBLE_EQ(d.track_smoothing, 0.8);
+  EXPECT_DOUBLE_EQ(d.track_speed, 0.2);
+  EXPECT_FALSE(d.track_invert_x);
+  EXPECT_TRUE(d.track_invert_y);
+  EXPECT_EQ(d.port, 18080);  // other values unchanged
+}

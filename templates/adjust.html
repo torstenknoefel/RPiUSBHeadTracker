@@ -9,16 +9,41 @@
     <style>
         /* Show the whole camera picture: full width up to the camera's own size,
            height from the picture's aspect ratio, nothing cropped. */
+        .camera-box {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+        }
         #camera {
             display: block;
             width: 100%;
-            max-width: 640px;
             height: auto;
             object-fit: contain;
         }
+        /* Face box and points from the tracker, drawn over the picture */
+        #overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #overlay rect { fill: none; stroke: #4caf50; stroke-width: 2; }
+        #overlay circle { fill: #ff5252; }
     </style>
     <main class="responsive">
-        <img src="/image" class="round" alt="Camera" id="camera">
+        <div class="camera-box">
+            <img src="/image" class="round" alt="Camera" id="camera">
+            <svg id="overlay" viewBox="0 0 640 480" preserveAspectRatio="none"></svg>
+        </div>
+        <p><span class="chip" id="state">Waiting for the tracker …</span></p>
+        <nav>
+            <button id="centre" title="Look straight at the screen, then press">
+                <i>center_focus_strong</i>
+                <span>Centre</span>
+            </button>
+        </nav>
+        <p class="small-text">Aim the camera so that your whole face is in the picture. The green box and the red points show what the tracker finds.</p>
     </main>
     <script>
         // Load the next picture only when the previous one has arrived, at most
@@ -47,6 +72,46 @@
             }
         }
         load();
+
+        // Face box and points: the tracker's newest result, about 10 times per second
+        const overlay = document.getElementById("overlay");
+        const state = document.getElementById("state");
+        const ns = "http://www.w3.org/2000/svg";
+
+        function shape(name, attrs) {
+            const e = document.createElementNS(ns, name);
+            for (const k in attrs) e.setAttribute(k, attrs[k]);
+            return e;
+        }
+
+        async function track() {
+            try {
+                const r = await fetch("/state", { cache: "no-store" });
+                if (!r.ok) throw new Error(r.status);
+                const s = await r.json();
+                if (s.frame.width > 0)
+                    overlay.setAttribute("viewBox", "0 0 " + s.frame.width + " " + s.frame.height);
+                overlay.replaceChildren();
+                if (s.face) {
+                    const [x, y, w, h] = s.box;
+                    overlay.appendChild(shape("rect", { x: x, y: y, width: w, height: h, rx: 4 }));
+                    for (const [px, py] of s.points)
+                        overlay.appendChild(shape("circle", { cx: px, cy: py, r: 4 }));
+                }
+                state.textContent = !s.face ? "No face found" : (s.centred ? "Tracking" : "Setting the centre …");
+                state.className = "chip " + (s.face && s.centred ? "primary" : "error");
+            } catch (e) {
+                overlay.replaceChildren();
+                state.textContent = "No connection to the tracker";
+                state.className = "chip error";
+            }
+            setTimeout(track, 100);
+        }
+        track();
+
+        document.getElementById("centre").addEventListener("click", async () => {
+            await fetch("/centre", { method: "POST" });
+        });
     </script>
 </body>
 </html>
