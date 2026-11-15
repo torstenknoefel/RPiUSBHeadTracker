@@ -37,6 +37,33 @@ static std::string number_text(double v)
   return os.str();
 }
 
+// Choices for the face detection size, as a list for the mustache template:
+// value (width), text ("256 × 192 (default)") and "selected" for the current one.
+// A width from the file that is not in the list is added, so it is not lost on Apply.
+static crow::json::wvalue detect_options(const RPiHTConfigData& data)
+{
+  const cv::Size camera(int(data.cam_width), int(data.cam_height));
+  // 320 is left out: there YuNet still finds "faces" on an empty wall
+  std::vector<int> widths = { 160, 192, 224, 256 };
+  if (std::find(widths.begin(), widths.end(), data.track_detect_width) == widths.end()) {
+    widths.push_back(data.track_detect_width);
+    std::sort(widths.begin(), widths.end());
+  }
+  std::vector<crow::json::wvalue> list;
+  for (int w : widths) {
+    const cv::Size s = detect_size_for(w, camera);
+    std::string text = std::to_string(s.width) + " \xC3\x97 " + std::to_string(s.height);
+    if (w == 160) text += " (fastest)";
+    if (w == 256) text += " (default)";
+    crow::json::wvalue o;
+    o["value"] = w;
+    o["text"] = text;
+    o["selected"] = (w == data.track_detect_width) ? "selected" : "";
+    list.push_back(std::move(o));
+  }
+  return crow::json::wvalue(list);
+}
+
 // Tracker state as JSON for the Status and Adjust pages
 static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
 {
@@ -130,6 +157,7 @@ public:
           tmp_config.track_speed = form_number(post, "track_speed", current.track_speed);
           tmp_config.track_invert_x = (post.get("track_invert_x") == "track_invert_x");
           tmp_config.track_invert_y = (post.get("track_invert_y") == "track_invert_y");
+          tmp_config.track_detect_width = int(form_number(post, "track_detect_width", current.track_detect_width));
 
           config.set_data(tmp_config); // marks the config unsaved/inactive only if something changed
           if (post.get("action") == "Save")
@@ -160,6 +188,7 @@ public:
                                     {"track_invert_x", data.track_invert_x ? "checked" : ""},
                                     {"track_invert_y", data.track_invert_y ? "checked" : ""},
                                   });
+      ctx["track_detect_options"] = detect_options(data);
       return page.render(ctx);
     });
 

@@ -16,7 +16,7 @@
 
 struct TrackerSettings
 {
-  cv::Size detect_size{ 160, 120 }; // frames are shrunk to this size for YuNet
+  cv::Size detect_size{ 256, 192 }; // frames are shrunk to this size for YuNet
   float min_score = 0.6f;           // YuNet confidence for a face
   int centre_frames = 15;           // frames averaged for the centre position
   AxisMapping x{};                  // head turn (yaw)   -> X

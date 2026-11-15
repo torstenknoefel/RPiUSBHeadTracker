@@ -202,13 +202,14 @@ TEST_F(RPiHTConfigTest, TrackingSettingsDefaultWhenMissing)
   RPiHTConfig config(path);  // kConfigJson has no track_* keys
   const auto& d = config.get_data();
   EXPECT_DOUBLE_EQ(d.track_range_x, 20.0);
-  EXPECT_DOUBLE_EQ(d.track_range_y, 20.0);
+  EXPECT_DOUBLE_EQ(d.track_range_y, 10.0);
   EXPECT_DOUBLE_EQ(d.track_deadzone, 1.5);
   EXPECT_DOUBLE_EQ(d.track_curve, 1.0);
   EXPECT_DOUBLE_EQ(d.track_smoothing, 1.0);
   EXPECT_DOUBLE_EQ(d.track_speed, 0.05);
   EXPECT_FALSE(d.track_invert_x);
   EXPECT_FALSE(d.track_invert_y);
+  EXPECT_EQ(d.track_detect_width, 256);
 }
 
 TEST_F(RPiHTConfigTest, TrackingSettingsLoadFromFile)
@@ -216,9 +217,11 @@ TEST_F(RPiHTConfigTest, TrackingSettingsLoadFromFile)
   auto p = dir.write("tracking.json", R"({ "device": "/dev/hidg0", "port": 1, "cam_width": 1,
     "cam_height": 1, "cam_framerate": 1.0, "cam_verbose": false,
     "track_range_x": 15, "track_range_y": 12.5, "track_deadzone": 2.0, "track_curve": 1.5,
-    "track_smoothing": 0.5, "track_speed": 0.1, "track_invert_x": true, "track_invert_y": false })").string();
+    "track_smoothing": 0.5, "track_speed": 0.1, "track_invert_x": true, "track_invert_y": false,
+    "track_detect_width": 320 })").string();
   RPiHTConfig config(p);
   const auto& d = config.get_data();
+  EXPECT_EQ(d.track_detect_width, 320);
   EXPECT_DOUBLE_EQ(d.track_range_x, 15.0);  // whole number in the file
   EXPECT_DOUBLE_EQ(d.track_range_y, 12.5);
   EXPECT_DOUBLE_EQ(d.track_deadzone, 2.0);
@@ -242,6 +245,10 @@ TEST_F(RPiHTConfigTest, ChangedTrackingSettingCountsAsChange)
   RPiHTConfigData inverted = config.get_data();
   inverted.track_invert_y = true;
   EXPECT_FALSE(inverted == config.get_data());
+
+  RPiHTConfigData resized = config.get_data();
+  resized.track_detect_width = 160;
+  EXPECT_FALSE(resized == config.get_data());
 }
 
 TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
@@ -257,6 +264,7 @@ TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
     changed.track_speed = 0.2;
     changed.track_invert_x = false;
     changed.track_invert_y = true;
+    changed.track_detect_width = 192;
     config.set_data(changed);
     config.save();
   }
@@ -271,5 +279,6 @@ TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
   EXPECT_DOUBLE_EQ(d.track_speed, 0.2);
   EXPECT_FALSE(d.track_invert_x);
   EXPECT_TRUE(d.track_invert_y);
+  EXPECT_EQ(d.track_detect_width, 192);
   EXPECT_EQ(d.port, 18080);  // other values unchanged
 }
