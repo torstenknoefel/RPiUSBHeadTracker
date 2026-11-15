@@ -4,7 +4,7 @@ A Raspberry Pi head tracker that a PC sees as an ordinary USB joystick.
 
 The Pi is plugged into the PC with a USB cable. It registers as a USB game controller, so games and simulators that can use a joystick need no extra driver or software. A camera on the Pi watches the player, and the program turns the camera picture into joystick movements. A small web interface lets you check the camera picture and change the settings from any browser.
 
-> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Sensitivity, dead zone and smoothing are set on the Config page; the Status page shows the tracker live and has a Centre button. The program does not start automatically at boot yet.
+> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Sensitivity, dead zone and smoothing are set on the Config page; the Status page shows the tracker live and has a Centre button. With `install_service.sh` the program starts at boot and again after a crash.
 
 ## How it works
 
@@ -64,7 +64,7 @@ The first `cmake` run needs an internet connection: it downloads the libraries l
 sudo bash headtracker_device.sh
 ```
 
-The PC now finds a new game controller called "RaspberryPi Head Tracker". When the script is started with `sudo`, it gives `/dev/hidg0` to your user, so the program can run without root. You can run the script again at any time; if the joystick is already set up, it does nothing. The setup is lost on reboot, so run it again after each start.
+The PC now finds a new game controller called "RaspberryPi Head Tracker". When the script is started with `sudo`, it gives `/dev/hidg0` to your user, so the program can run without root. You can run the script again at any time; if the joystick is already set up, it does nothing. The setup is lost on reboot; step 7 makes this happen at every start.
 
 ### 5. Create the config file
 
@@ -114,7 +114,30 @@ cd build
 | `-c`, `--configfile` | Full path to the config file. Default: `/etc/USBHT.json`. |
 | `-h`, `--help` | Show the options. |
 
-Stop it with **Ctrl+C**, or `pkill -x RPiUSBHeadTrack` from another terminal. The program then closes the camera, the web server and the joystick device cleanly. It does not start automatically at boot yet.
+Stop it with **Ctrl+C**, or `pkill -x RPiUSBHeadTrack` from another terminal. The program then closes the camera, the web server and the joystick device cleanly.
+
+### 7. Start at boot
+
+```bash
+sudo bash install_service.sh ~/USBHT.json
+```
+
+This installs two systemd services and starts them right away:
+
+| Service | Does |
+|---|---|
+| `headtracker-gadget` | Creates the USB joystick at boot (`headtracker_device.sh`) and gives `/dev/hidg0` to your user. |
+| `headtracker` | Starts the program as your user, from the build folder, with the given config file. After a crash it starts the program again within 3 seconds (at most 5 times in 2 minutes). |
+
+The first argument is the config file (default `/etc/USBHT.json`), the second the build folder (default `build` next to the script). Run the script again after moving them.
+
+| Command | Does |
+|---|---|
+| `systemctl status headtracker` | Shows whether the program runs. |
+| `journalctl -u headtracker -f` | Shows the program's messages. |
+| `sudo systemctl stop headtracker` | Stops the program until the next boot (for example before building, so the compiler has the CPU). `pkill` works too: a normal stop is not restarted. |
+| `sudo systemctl start headtracker` | Starts it again. |
+| `sudo bash install_service.sh --remove` | Removes both services. |
 
 ## The web interface
 
@@ -196,7 +219,7 @@ A wrong camera size, port or joystick device could make the program unusable or 
 1. **Try these** remembers the settings the program runs with now (the last working ones) in `<config file>.trial`, for example `/etc/USBHT.json.trial`, and restarts with the new ones.
 2. The program checks that the web server answers on its port, the joystick device opens and the camera delivers a picture. If one of these fails, it goes back to the last working settings right away.
 3. Otherwise the status bar counts down 30 seconds. **Keep** keeps the new settings; **Go back** or doing nothing brings back the last working settings.
-4. If the program stops during the trial (crash, power off), it starts the next time with the last working settings.
+4. If the program stops during the trial (crash, power off), it starts the next time with the last working settings. With the service from step 7, systemd starts it again right after a crash.
 
 After a port change the page moves to the new port by itself once the program answers there. If the new port does not work, the program goes back to the old one after 30 seconds; the page on the old port then shows why.
 
@@ -247,6 +270,7 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `$'\r': command not found` when running the script | The script has Windows line endings. Check it out again with this repository's `.gitattributes`, or run `sed -i 's/\r$//' headtracker_device.sh`. |
 | Web interface does not open | Check the port in the config file and that the program is running. The log shows `Crow/master server is running at …`. |
 | No camera picture | Check the camera cable and that `rpicam-hello --list-cameras` (or `libcamera-hello --list-cameras` on older systems) finds the camera. |
+| The service does not start | `journalctl -u headtracker -u headtracker-gadget -b` shows why. After 5 crashes in 2 minutes systemd stops trying; `sudo systemctl reset-failed headtracker` and `sudo systemctl start headtracker` try again. |
 
 ## Project layout
 
@@ -266,6 +290,7 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `QueryParser.*` | Reads the values sent by the Config form. |
 | `templates/`, `static/` | Web pages and style sheets. |
 | `headtracker_device.sh` | Creates the USB joystick. |
+| `install_service.sh`, `service/` | Start at boot and after a crash (systemd). |
 | `tests/` | Unit tests. |
 
 ## Libraries
