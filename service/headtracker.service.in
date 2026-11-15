@@ -1,0 +1,22 @@
+# Starts the head tracker at boot and starts it again if it crashes.
+# Installed by install_service.sh, which fills in the @...@ values.
+[Unit]
+Description=RPiUSBHeadTracker head tracker
+Requires=headtracker-gadget.service
+After=headtracker-gadget.service network-online.target
+Wants=network-online.target
+# At most 5 crashes within 2 minutes, then systemd gives up
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+User=@USER@
+# The program loads the web pages and the face model relative to this folder
+WorkingDirectory=@BUILD@
+ExecStart=@BUILD@/RPiUSBHeadTracker -c @CONFIG@
+# Only after a crash: Ctrl+C, pkill or systemctl stop end the program normally
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

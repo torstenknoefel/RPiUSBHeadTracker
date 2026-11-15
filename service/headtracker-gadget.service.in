@@ -1,0 +1,13 @@
+# Creates the USB joystick (/dev/hidg0) at boot and gives it to @USER@.
+# Installed by install_service.sh, which fills in the @...@ values.
+[Unit]
+Description=RPiUSBHeadTracker: USB joystick gadget (/dev/hidg0)
+After=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash @SOURCE@/headtracker_device.sh @USER@
+
+[Install]
+WantedBy=multi-user.target

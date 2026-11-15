@@ -1,7 +1,9 @@
 #!/bin/bash
 # Creates the USB HID joystick gadget (/dev/hidg0) via configfs.
-# Run as root: sudo ./headtracker_device.sh
-# Safe to run again: an already active gadget is left alone.
+# Run as root: sudo ./headtracker_device.sh [user]
+# /dev/hidg0 is given to 'user' (default: the user who called sudo), so the
+# program can run without root. Safe to run again: an already active gadget
+# is left alone.
 
 set -e
 
@@ -14,8 +16,11 @@ modprobe libcomposite
 
 GADGET=/sys/kernel/config/usb_gadget/rpi_headtracker
 
+OWNER="${1:-$SUDO_USER}"
+
 if [ -n "$(cat "$GADGET/UDC" 2>/dev/null)" ]; then
   echo "Head tracker gadget is already active"
+  [ -n "$OWNER" ] && [ -e /dev/hidg0 ] && chown "$OWNER" /dev/hidg0
   exit 0
 fi
 
@@ -61,10 +66,10 @@ echo -ne \\x05\\x01\\x09\\x04\\xA1\\x01\\x15\\x81\\x25\\x7F\\x09\\x01\\xA1\\x00\
 # Activate device
 ls /sys/class/udc | head -n 1 > UDC
 
-# Let the user who called sudo write reports without root
-if [ -n "$SUDO_USER" ]; then
+# Let the program's user write reports without root
+if [ -n "$OWNER" ]; then
   for _ in $(seq 50); do [ -e /dev/hidg0 ] && break; sleep 0.1; done
-  chown "$SUDO_USER" /dev/hidg0
+  chown "$OWNER" /dev/hidg0
 fi
 
 sleep 10
