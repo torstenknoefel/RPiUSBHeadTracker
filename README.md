@@ -90,12 +90,13 @@ The program reads its settings from `/etc/USBHT.json`, or from the file given wi
 | `cam_width`, `cam_height` | Camera picture size in pixels. |
 | `cam_framerate` | Camera frames per second. |
 | `cam_verbose` | `true` writes detailed camera messages to the log. |
-| `track_range_x`, `track_range_y` | Degrees of head turn (X) or tilt (Y) for full joystick deflection. Optional, default 20. |
+| `track_range_x`, `track_range_y` | Degrees of head turn (X) or tilt (Y) for full joystick deflection. Optional, default 20 for X and 10 for Y. |
 | `track_deadzone` | Degrees around the centre that give 0. Optional, default 1.5. |
 | `track_curve` | 1 = linear; above 1 finer near the centre and faster towards the edge. Optional, default 1. |
 | `track_smoothing` | Smoothing while the head is still, in Hz: lower = calmer, but more lag. Optional, default 1. |
 | `track_speed` | How quickly the smoothing lets fast movements through: higher = less lag. Optional, default 0.05. |
 | `track_invert_x`, `track_invert_y` | `true` reverses the direction of X or Y. Optional, default `false`. |
+| `track_detect_width` | Width in pixels the camera picture is shrunk to for face detection; the height keeps the camera's aspect ratio. Larger = steadier, above all up/down, but slower. Optional, default 256. |
 
 When you press **Save** in the web interface, the program writes this file itself and adds the keys `saved` and `active`. Your user needs write permission for the file.
 
@@ -161,6 +162,7 @@ All settings from the config file in one form.
 | **Smoothing** | Lower = calmer when holding still, but more lag. |
 | **Follow speed** | Higher = less lag on fast head movements. |
 | **Invert left/right**, **Invert up/down** | Reverse the direction of X or Y. |
+| **Face detection size** | Size the camera picture is shrunk to for finding the face. Larger = steadier, above all up/down, but more processing time (shown on the Status page). |
 
 The buttons:
 
@@ -185,11 +187,13 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 ## Head tracking
 
 - **Centre position:** after the start, and when you press **Centre** on the Status or Adjust page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
-- **Range:** by default 20° of head turn or tilt gives full joystick deflection. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page; **Apply** restarts the tracker with the new values.
+- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because the five face points show a nod less clearly than a turn, so nods measure smaller than they are. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page; **Apply** restarts the tracker with the new values.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
-- **Speed:** on a Pi 4 the tracker keeps up with the camera at 60 frames per second. From a camera frame to the joystick values takes about 10 ms.
-- **Log:** every 10 s the program writes a line like `Camera: 60.0 frames/s | Tracker: 60.0 frames/s, face 100%, processing 8.7 ms, latency 9.3 ms …`.
+- **Face detection size:** the camera picture is shrunk before the face is searched. The default 256 × 192 keeps the face points steady; at 160 × 120 the up/down value jitters about five times as much when you hold still, but processing is faster. Change it on the Config page.
+- **False faces:** a "face" box wider than 80 % of the picture or taller than the whole picture is ignored. At some sizes the face model reports such boxes on an empty wall or in a dark room.
+- **Speed:** on a Pi 4 at 256 × 192 processing takes about 20 ms per frame, so the tracker keeps up with the camera at 30 frames per second. At 160 × 120 it takes about 9 ms, enough for 60 frames per second.
+- **Log:** every 10 s the program writes a line like `Camera: 30.0 frames/s | Tracker: 30.0 frames/s, face 100%, processing 20.5 ms, latency 21.0 ms …`.
 
 The face model (YuNet, 2022 version, MIT licence) comes from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo). CMake downloads it at configure time and checks it against its SHA256. The newer 2023 version of the model needs OpenCV 4.8; Debian bookworm has 4.6.
 
