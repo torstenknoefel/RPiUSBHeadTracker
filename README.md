@@ -128,8 +128,10 @@ Every page starts with a bar that shows whether the settings are saved and in us
 |---|---|---|
 | Green: **Settings saved and in use** | The program runs with the values from the config file. | – |
 | Amber: **Changed settings in use – not saved** | You changed head tracking values. They are lost when the program restarts. | **Save** writes them to the file. **Back to saved** returns to the values in the file. |
-| Amber: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Restart now** |
+| Amber: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Try now** (see [Trying camera and connection settings](#trying-camera-and-connection-settings)) |
 | Blue: **Restarting with the new settings …** | Camera, web server and joystick start again. | – |
+| Blue: **Trying new settings – keep them?** | New camera or connection settings run on trial, with a countdown. | **Keep** · **Go back** |
+| Red: **Your change was undone – back to the last working settings** | The new settings failed or were not kept; the bar says why. | **OK** |
 | Red: **No connection to the head tracker** | The program is not running or the network is down. | – |
 
 ### Status
@@ -145,7 +147,7 @@ The start page shows the tracker live, about five times per second:
 
 **Centre:** look straight at the screen and press it; the head position of the next frames becomes "straight ahead". The program also does this by itself after every start.
 
-The same data is available as JSON at `/state`; `POST /centre` does what the button does. The status bar uses `/status` (`saved`, `active`); `POST /tracking` (head tracking values as form fields), `POST /save`, `POST /revert` and `POST /restart` do what the Config page and the status bar buttons do.
+The same data is available as JSON at `/state`; `POST /centre` does what the button does. The status bar uses `/status` (`saved`, `active`, `trial`, `failure`); `POST /tracking` (head tracking values as form fields), `POST /save`, `POST /revert`, `POST /restart`, `POST /keep`, `POST /undo` and `POST /dismiss` do what the Config page and the status bar buttons do.
 
 ### Adjust
 
@@ -184,8 +186,19 @@ The page has two parts.
 | **Web server address**, **Web server port** (Advanced) | Address and port the web interface listens on (`0.0.0.0` = all). After a port change, open the web interface at the new port. |
 
 - **Undo edits** puts these fields back to the values the page showed when it was loaded.
-- **Restart with these** restarts camera, web server and joystick with the new values. They are not saved yet; the status bar shows that.
+- **Try these** restarts camera, web server and joystick with the new values on trial: press **Keep** in the status bar within 30 seconds, or the last working settings come back. Kept values are not saved yet; the status bar shows that.
 - **Save** writes all values to the config file. Camera and connection values are used after the next restart.
+
+### Trying camera and connection settings
+
+A wrong camera size, port or joystick device could make the program unusable or the web page unreachable. So these settings are only tried at first:
+
+1. **Try these** remembers the settings the program runs with now (the last working ones) in `<config file>.trial`, for example `/etc/USBHT.json.trial`, and restarts with the new ones.
+2. The program checks that the web server answers on its port, the joystick device opens and the camera delivers a picture. If one of these fails, it goes back to the last working settings right away.
+3. Otherwise the status bar counts down 30 seconds. **Keep** keeps the new settings; **Go back** or doing nothing brings back the last working settings.
+4. If the program stops during the trial (crash, power off), it starts the next time with the last working settings.
+
+After a port change the page moves to the new port by itself once the program answers there. If the new port does not work, the program goes back to the old one after 30 seconds; the page on the old port then shows why.
 
 On a phone the form uses the whole width and the menu is at the bottom:
 
@@ -216,7 +229,7 @@ The face model (YuNet, 2022 version, MIT licence) comes from the [OpenCV model z
 
 ## Unit tests
 
-The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter and the conversion to joystick values. They are built automatically when `libgtest-dev` is installed:
+The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values and the trial of new settings. They are built automatically when `libgtest-dev` is installed:
 
 ```bash
 ninja -C build
@@ -244,6 +257,7 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `RPiHTCam.*` | Camera access; reads every frame in its own thread. |
 | `HeadTracker.*` | Finds the face in each frame and produces the joystick values. |
 | `TrackerSettings.*` | Tracker settings from the config values. |
+| `Trial.*` | Trying camera and connection settings, with the last working settings as fallback. |
 | `HeadPose.*` | Head angles from the five face points. |
 | `OneEuroFilter.h` | Smoothing filter. |
 | `JoystickMapping.*` | Head angle → joystick value (range, dead zone, curve). |

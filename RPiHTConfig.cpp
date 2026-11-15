@@ -60,12 +60,24 @@ public:
   ~Impl() = default;
   bool read(RPiHTConfigData& out) const
   {
+    return read_from(config_path, out);
+  };
+  static bool read_from(const std::filesystem::path& path, RPiHTConfigData& out)
+  {
     bool ok = false;
     tao::config::internal::try_catch([&]() {
-      out = tao::config::from_file(config_path).as <RPiHTConfigData>();
+      out = tao::config::from_file(path).as <RPiHTConfigData>();
       ok = true;
       });
     return ok;
+  };
+  static bool write_to(const std::filesystem::path& path, const RPiHTConfigData& data)
+  {
+    std::ofstream file(path, std::ios::out | std::ios::trunc);
+    tao::config::value value;
+    value.assign(data);
+    tao::json::to_stream(file, value, 3);
+    return file.good();
   };
   void print()
   {
@@ -142,4 +154,14 @@ bool RPiHTConfig::reload()
   if (changed)
     data.is_active = false;
   return true;
+}
+
+bool RPiHTConfig::write_file(const std::string& path, const RPiHTConfigData& d) const
+{
+  return Impl::write_to(path, d);
+}
+
+bool RPiHTConfig::read_file(const std::string& path, RPiHTConfigData& out) const
+{
+  return Impl::read_from(path, out);
 }

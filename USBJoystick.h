@@ -141,9 +141,12 @@ public:
     //     USBJoystick(uint16_t vendor_id = 0x1234, uint16_t product_id = 0x0500, uint16_t product_release = 0x0001, int waitForConnect = true):    // 8 buttons, no padding on buttons
   USBJoystick(const std::string device_path = "") {   // 32 buttons, no padding on buttons
     fout = std::fstream(device_path, std::ios::out | std::ios::binary);
-      assert(fout.is_open());
-
+    if (!fout.is_open())
+      std::cerr << "Joystick: cannot open " << device_path << std::endl;
   };
+
+  // false if the joystick device could not be opened
+  bool ok() const { return fout.is_open(); }
 
   /**
     * Write state of the joystick

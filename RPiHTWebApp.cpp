@@ -2,6 +2,11 @@
 #include <mutex>
 #include <regex>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include "crow.h"
 
 #include "RPiHTWebApp.h"
@@ -75,6 +80,23 @@ static crow::json::wvalue detect_options(const RPiHTConfigData& data)
   return crow::json::wvalue(list);
 }
 
+// true if a TCP connection to the web server's own address and port succeeds
+static bool port_answers(const std::string& ip, int port)
+{
+  const std::string host = (ip.empty() || ip == "0.0.0.0") ? "127.0.0.1" : ip;
+  sockaddr_in addr{};
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(static_cast<uint16_t>(port));
+  if (port <= 0 || port > 65535 || inet_pton(AF_INET, host.c_str(), &addr.sin_addr) != 1)
+    return false;
+  const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0)
+    return false;
+  const bool ok = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
+  ::close(fd);
+  return ok;
+}
+
 // Tracker state as JSON for the Status and Adjust pages
 static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
 {
@@ -104,8 +126,8 @@ static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
 class RPiHTWebApp::Impl
 {
 public:
-  Impl(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker)
-    : config_(config), tracker_(tracker)
+  Impl(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker, Trial &trial)
+    : config_(config), tracker_(tracker), trial_(trial)
   {
     running_ = config_.get_data();  // the program has just started with these values
     if (!config_.read_saved(saved_))
@@ -133,6 +155,33 @@ public:
       ([this]()
         {
           std::lock_guard<std::mutex> lock(mtx_);
+          return status_response();
+        });
+
+    // Trying new camera / connection settings: keep them, go back, or hide the
+    // message about a trial that was undone
+    CROW_ROUTE(webapp, "/keep").methods("POST"_method)
+      ([this]()
+        {
+          std::lock_guard<std::mutex> lock(mtx_);
+          trial_.keep();
+          return status_response();
+        });
+    CROW_ROUTE(webapp, "/undo").methods("POST"_method)
+      ([this]()
+        {
+          std::lock_guard<std::mutex> lock(mtx_);
+          if (!trial_.active())
+            return status_response();
+          config_.set_data(trial_.cancel());
+          reload_config = true;
+          return status_response(true);
+        });
+    CROW_ROUTE(webapp, "/dismiss").methods("POST"_method)
+      ([this]()
+        {
+          std::lock_guard<std::mutex> lock(mtx_);
+          trial_.dismiss();
           return status_response();
         });
 
@@ -185,12 +234,13 @@ public:
           return status_response(true);
         });
 
-    // Restarts camera, web server and joystick with the current values
+    // Restarts camera, web server and joystick with the current values,
+    // as a trial if they differ from the running ones
     CROW_ROUTE(webapp, "/restart").methods("POST"_method)
       ([this]()
         {
           std::lock_guard<std::mutex> lock(mtx_);
-          reload_config = true;
+          restart();
           return status_response(true);
         });
 
@@ -211,16 +261,17 @@ public:
         });
 
     // Config page. The form posts only camera, web server and joystick values
-    // ("Set" = restart with them, "Save" = write them to the file); head tracking
-    // values come through /tracking.
+    // ("Try" = restart with them as a trial, "Save" = write them to the file);
+    // head tracking values come through /tracking.
     CROW_ROUTE(webapp, "/config")
       .methods("POST"_method, "GET"_method) ([this](const crow::request& req)
     {
       QueryParser post = QueryParser(req.body);
       std::lock_guard<std::mutex> lock(mtx_);
+      std::string trial_url;  // where the page finds the program after a port change
       if (post.keys().size() > 0) // we are getting a valid response
       {
-        if (post.get("action") == "Save" || post.get("action") == "Set")
+        if (post.get("action") == "Save" || post.get("action") == "Try")
         {
           RPiHTConfigData tmp_config = config_.get_data();  // keeps the head tracking values
           tmp_config.device_path = post.get("device");
@@ -237,8 +288,10 @@ public:
             config_.save();
             config_.read_saved(saved_);
           }
-          else { // must be action "Set"
-            reload_config = true;
+          else { // must be action "Try"
+            restart();
+            if (config_.get_data().port != running_.port)
+              trial_url = new_url(req, config_.get_data().port);
           }
         }
       }
@@ -264,6 +317,8 @@ public:
       ctx["track_detect_options"] = detect_options(data);
       if (reload_config)
         ctx["restart_instance"] = instance_;  // the status bar shows the restart
+      ctx["trial_url"] = trial_url;
+      ctx["trial_seconds"] = int(trial_.timeout().count());
       return page.render(ctx);
     });
 
@@ -287,12 +342,47 @@ public:
 
     // Signals are handled in main() so the whole app shuts down, not only the web server
     _a = webapp.signal_clear().bindaddr(config.get_ip()).port(config.get_data().port).run_async();
+    // Crow reports the server as started even if it could not bind the port,
+    // so check that the port really answers
+    webapp.wait_for_server_start(std::chrono::seconds(3));
+    started_ = port_answers(config.get_ip(), config.get_data().port);
   };
+
+  bool started() const { return started_; }
+
+  void trial_expired()
+  {
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (!trial_.active())
+      return;
+    config_.set_data(trial_.fail("The new settings were not confirmed within "
+      + std::to_string(trial_.timeout().count()) + " seconds."));
+    reload_config = true;
+  }
   ~Impl()
   {
     webapp.stop();
   };
 private:
+  // Restart with the current values; a trial if camera, web server or joystick
+  // values differ from the running ones. Caller holds mtx_.
+  void restart()
+  {
+    if (!config_.get_data().same_system(running_))
+      trial_.start(running_);
+    reload_config = true;
+  }
+
+  // Address of this page with another port ("http://dacia:18081")
+  static std::string new_url(const crow::request& req, int port)
+  {
+    std::string host = req.get_header_value("Host");
+    const auto colon = host.rfind(':');
+    if (colon != std::string::npos && host.find(']', colon) == std::string::npos)
+      host.erase(colon);
+    return "http://" + host + ":" + std::to_string(port);
+  }
+
   // The current head tracking values go to the running tracker. Caller holds mtx_.
   void use_tracking()
   {
@@ -300,11 +390,13 @@ private:
     tracker_.update_settings(tracker_settings(running_));
   }
 
-  // { saved, active, restarting, instance } for the status bar. Caller holds mtx_.
+  // { saved, active, restarting, instance, trial, failure } for the status bar. Caller holds mtx_.
   //   saved:      the current values are the ones in the config file
   //   active:     the program runs with the current values (false: a restart is needed)
   //   restarting: a restart was just started
   //   instance:   changes with every restart, so the page sees when the restart is done
+  //   trial:      seconds until the last working settings come back (-1: no trial)
+  //   failure:    why the last trial was undone ("" if it was not)
   crow::response status_response(bool restarting = false)
   {
     const auto& data = config_.get_data();
@@ -313,13 +405,19 @@ private:
     j["active"] = (data == running_);
     j["restarting"] = restarting;
     j["instance"] = instance_;
+    j["trial"] = trial_.seconds_left();
+    j["failure"] = trial_.failure();
     auto response = crow::response(j);
     response.set_header("Cache-Control", "no-store");
+    // After a port change the page still comes from the old port and asks here
+    response.set_header("Access-Control-Allow-Origin", "*");
     return response;
   }
 
   RPiHTConfig& config_;
   HeadTracker& tracker_;
+  Trial& trial_;
+  bool started_ = false;
   std::mutex mtx_;            // guards the config and the two copies below
   RPiHTConfigData running_;   // values the program runs with
   RPiHTConfigData saved_;     // values in the config file
@@ -331,8 +429,12 @@ private:
 };
 
 
-RPiHTWebApp::RPiHTWebApp(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker)
-  : pImpl(std::make_unique<Impl>(config, cam, tracker))
+RPiHTWebApp::RPiHTWebApp(RPiHTConfig &config, RPiHTCam &cam, HeadTracker &tracker, Trial &trial)
+  : pImpl(std::make_unique<Impl>(config, cam, tracker, trial))
 {};
+
+bool RPiHTWebApp::started() const { return pImpl->started(); }
+
+void RPiHTWebApp::trial_expired() { pImpl->trial_expired(); }
 
 RPiHTWebApp::~RPiHTWebApp() = default;

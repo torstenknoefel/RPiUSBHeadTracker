@@ -12,10 +12,11 @@
     .statusbar .sb-text small { opacity: 0.8; }
     .statusbar nav { margin: 0; gap: 8px; flex-wrap: wrap; }
     .statusbar button { margin: 0; }
-    .statusbar.ok { --sb-color: #43a047; }
-    .statusbar.changed { --sb-color: #fb8c00; }
-    .statusbar.busy { --sb-color: #1e88e5; }
-    .statusbar.error { --sb-color: #e53935; }
+    /* own class names: BeerCSS already styles "error" */
+    .statusbar.sb-ok { --sb-color: #43a047; }
+    .statusbar.sb-changed { --sb-color: #fb8c00; }
+    .statusbar.sb-busy { --sb-color: #1e88e5; }
+    .statusbar.sb-error { --sb-color: #e53935; }
 </style>
 <div class="statusbar" id="statusbar" role="status" aria-live="polite">
     <i id="sb-icon">hourglass_empty</i>
@@ -26,7 +27,10 @@
     <nav>
         <button class="small" id="sb-save" style="display: none"><i>save</i><span>Save</span></button>
         <button class="small border" id="sb-revert" style="display: none"><i>undo</i><span>Back to saved</span></button>
-        <button class="small" id="sb-restart" style="display: none"><i>restart_alt</i><span>Restart now</span></button>
+        <button class="small" id="sb-restart" style="display: none"><i>restart_alt</i><span>Try now</span></button>
+        <button class="small" id="sb-keep" style="display: none"><i>check</i><span>Keep</span></button>
+        <button class="small border" id="sb-undo" style="display: none"><i>undo</i><span>Go back</span></button>
+        <button class="small border" id="sb-dismiss" style="display: none"><i>close</i><span>OK</span></button>
     </nav>
 </div>
 <script>
@@ -34,21 +38,28 @@
         const el = id => document.getElementById(id);
         const bar = el("statusbar");
         let restartFrom = null;  // instance of the program that is restarting
-        // The Config page was just sent with "Restart with these"
+        // The Config page was just sent with "Try these"
         if ("{{restart_instance}}") restartFrom = Number("{{restart_instance}}");
+        // ... with a new port: the program answers there after the restart
+        const trialUrl = "{{trial_url}}";
 
         function look(kind, icon, title, detail, buttons) {
-            bar.className = "statusbar " + kind;
+            bar.className = "statusbar sb-" + kind;
             el("sb-icon").textContent = icon;
             el("sb-title").textContent = title;
             el("sb-detail").textContent = detail;
-            for (const b of ["save", "revert", "restart"])  // (BeerCSS buttons ignore "hidden")
+            for (const b of ["save", "revert", "restart", "keep", "undo", "dismiss"])  // (BeerCSS buttons ignore "hidden")
                 el("sb-" + b).style.display = buttons.includes(b) ? "" : "none";
         }
 
+        // Load the Config page again with GET: reload() would send the form a second time
+        // when the page came from "Try these" or "Save"
+        function reloadConfig() { location.replace("/config"); }
+
         function showRestarting() {
             look("busy", "sync", "Restarting with the new settings …",
-                 "Camera, web server and joystick start again. This takes a few seconds.", []);
+                 "Camera, web server and joystick start again. This takes a few seconds." +
+                 (trialUrl ? " Then this page moves to " + trialUrl + "." : ""), []);
         }
 
         // s = { saved, active, restarting, instance } from /status, /tracking, /save, /revert, /restart
@@ -57,16 +68,21 @@
             if (restartFrom !== null) {
                 if (s.instance === restartFrom) { showRestarting(); return; }
                 restartFrom = null;  // the restarted program answers
-                if (location.pathname === "/config") { location.reload(); return; }
+                if (location.pathname === "/config") { reloadConfig(); return; }
             }
-            if (s.saved && s.active) {
+            if (s.trial >= 0) {
+                look("busy", "help", "Trying new settings – keep them?",
+                     "If you do nothing, the last working settings come back in " + s.trial + " s.", ["keep", "undo"]);
+            } else if (s.failure) {
+                look("error", "error", "Your change was undone – back to the last working settings", s.failure, ["dismiss"]);
+            } else if (s.saved && s.active) {
                 look("ok", "check_circle", "Settings saved and in use", "", []);
             } else if (s.active) {
                 look("changed", "edit", "Changed settings in use – not saved",
                      "They are lost when the program restarts. Save keeps them.", ["save", "revert"]);
             } else if (s.saved) {
                 look("changed", "pending", "Saved, but not in use yet",
-                     "Camera, web server or joystick settings changed. They are used after a restart.", ["restart"]);
+                     "Camera, web server or joystick settings changed. Try them now, or they are used at the next start.", ["restart"]);
             } else {
                 look("changed", "pending", "Changed settings – not saved and not in use yet",
                      "Camera, web server or joystick settings changed.", ["restart", "save", "revert"]);
@@ -74,11 +90,21 @@
         }
         window.htStatus = show;  // pages that change settings show the new state right away
 
+        let trialRunning = false;
         async function poll() {
             try {
+                if (trialUrl && restartFrom !== null) {
+                    // after a port change: go to the new address as soon as the program answers there
+                    try {
+                        const n = await fetch(trialUrl + "/status", { cache: "no-store" });
+                        if (n.ok) { location.href = trialUrl + "/config"; return; }
+                    } catch (e) { /* not there (yet) */ }
+                }
                 const r = await fetch("/status", { cache: "no-store" });
                 if (!r.ok) throw new Error(r.status);
-                show(await r.json());
+                const s = await r.json();
+                trialRunning = s.trial >= 0;
+                show(s);
             } catch (e) {
                 if (restartFrom !== null)
                     showRestarting();
@@ -86,7 +112,7 @@
                     look("error", "error", "No connection to the head tracker",
                          "The program is not running or the network is down.", []);
             }
-            setTimeout(poll, restartFrom !== null ? 1000 : 2000);
+            setTimeout(poll, restartFrom !== null || trialRunning ? 1000 : 2000);
         }
 
         async function post(url) {
@@ -104,10 +130,13 @@
 
         el("sb-save").addEventListener("click", () => post("/save"));
         el("sb-restart").addEventListener("click", () => post("/restart"));
+        el("sb-keep").addEventListener("click", () => post("/keep"));
+        el("sb-undo").addEventListener("click", () => post("/undo"));
+        el("sb-dismiss").addEventListener("click", () => post("/dismiss"));
         el("sb-revert").addEventListener("click", async () => {
             const s = await post("/revert");
             // the Config page shows the saved values again
-            if (s && !s.restarting && location.pathname === "/config") location.reload();
+            if (s && !s.restarting && location.pathname === "/config") reloadConfig();
         });
         if (restartFrom !== null) showRestarting();
         poll();

@@ -83,6 +83,10 @@ public:
   // The values in the config file, without changing the current ones.
   // false if the file cannot be read.
   bool read_saved(RPiHTConfigData& out) const;
+  // Writes / reads config values to / from another file (e.g. the last working
+  // settings while new ones are tried). false on failure.
+  bool write_file(const std::string& path, const RPiHTConfigData& d) const;
+  bool read_file(const std::string& path, RPiHTConfigData& out) const;
   [[nodiscard]]std::string get_device_path() const { return data.device_path; }
   void set_device_path(const std::string& dp) { data.device_path = dp; data.is_active = data.is_saved = false; }
   [[nodiscard]] std::string get_ip() const { return data.ip; }
