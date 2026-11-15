@@ -117,7 +117,7 @@
         <form action="/config" method="post">
             <fieldset class="border round label">
                 <legend>Camera and connection</legend>
-                <p class="live-note small-text"><i class="small">restart_alt</i>These are used after a restart: press <b>Restart with these</b>, or <b>Save</b> to use them from the next start.</p>
+                <p class="live-note small-text"><i class="small">restart_alt</i>These need a restart. <b>Try these</b> restarts with them for {{trial_seconds}} seconds: press <b>Keep</b> in the bar at the top, or the last working settings come back by themselves.</p>
                 <div class="field border label">
                     <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" />
                     <label>Camera width</label>
@@ -158,9 +158,9 @@
                         <i>undo</i>
                         <span>Undo edits</span>
                     </button>
-                    <button type="submit" name="action" value="Set">
+                    <button type="submit" name="action" value="Try">
                         <i>restart_alt</i>
-                        <span>Restart with these</span>
+                        <span>Try these</span>
                     </button>
                     <button type="submit" name="action" value="Save">
                         <i>save</i>
