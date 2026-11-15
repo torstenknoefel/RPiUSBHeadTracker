@@ -77,17 +77,23 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
   cv::resize(frame, small, settings_.detect_size, 0, 0, cv::INTER_AREA);
   detector_->detect(small, faces);
 
+  // Best face, leaving out boxes no real face has (see plausible_face_box)
+  const double sx = double(frame.cols) / small.cols, sy = double(frame.rows) / small.rows;
   int best = -1;
-  for (int r = 0; r < faces.rows; ++r)
+  for (int r = 0; r < faces.rows; ++r) {
+    const cv::Rect2f b(float(faces.at<float>(r, 0) * sx), float(faces.at<float>(r, 1) * sy),
+                       float(faces.at<float>(r, 2) * sx), float(faces.at<float>(r, 3) * sy));
+    if (!plausible_face_box(b, frame.size()))
+      continue;
     if (best < 0 || faces.at<float>(r, 14) > faces.at<float>(best, 14))
       best = r;
+  }
 
   // 2. Head angles from the five points, in full-frame pixels
   HeadPose pose;
   FacePoints pts{};
   cv::Rect2f box;
   if (best >= 0) {
-    const double sx = double(frame.cols) / small.cols, sy = double(frame.rows) / small.rows;
     for (int k = 0; k < 5; ++k)
       pts[k] = { faces.at<float>(best, 4 + 2 * k) * sx, faces.at<float>(best, 5 + 2 * k) * sy };
     box = { float(faces.at<float>(best, 0) * sx), float(faces.at<float>(best, 1) * sy),

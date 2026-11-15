@@ -94,3 +94,39 @@ TEST(HeadPose, WorksAtTheSmallDetectionSize)
   EXPECT_NEAR(p.yaw, 10, 1.0);
   EXPECT_NEAR(p.pitch, -5, 1.0);
 }
+
+// Face detection size from the configured width
+
+TEST(DetectSize, KeepsTheCameraAspectRatio)
+{
+  EXPECT_EQ(detect_size_for(256, { 640, 480 }), cv::Size(256, 192));
+  EXPECT_EQ(detect_size_for(160, { 640, 480 }), cv::Size(160, 120));
+  EXPECT_EQ(detect_size_for(320, { 1280, 720 }), cv::Size(320, 180));
+}
+
+TEST(DetectSize, StaysBetween96AndTheCameraWidth)
+{
+  EXPECT_EQ(detect_size_for(10, { 640, 480 }), cv::Size(96, 72));
+  EXPECT_EQ(detect_size_for(5000, { 640, 480 }), cv::Size(640, 480));
+}
+
+TEST(DetectSize, UnknownCameraSizeCountsAs640x480)
+{
+  EXPECT_EQ(detect_size_for(256, { 0, 0 }), cv::Size(256, 192));
+}
+
+// Face boxes no real face has
+
+TEST(PlausibleFaceBox, RealFacesPass)
+{
+  EXPECT_TRUE(plausible_face_box({ 200, 100, 260, 300 }, kImage));  // normal distance
+  EXPECT_TRUE(plausible_face_box({ 130, -20, 470, 460 }, kImage));  // very close, top cut off
+}
+
+TEST(PlausibleFaceBox, WholeFrameBoxesAreRejected)
+{
+  // as YuNet reports them at 256x192 on an empty wall
+  EXPECT_FALSE(plausible_face_box({ 36, -31, 548, 535 }, kImage));
+  EXPECT_FALSE(plausible_face_box({ 0, 0, 600, 400 }, kImage));   // too wide
+  EXPECT_FALSE(plausible_face_box({ 200, -40, 300, 520 }, kImage)); // taller than the frame
+}
