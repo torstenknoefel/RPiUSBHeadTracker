@@ -19,11 +19,13 @@ using namespace std;
 #include <csignal>
 #include <filesystem>
 #include <iostream>
+#include <thread>
 #include <vector>
 
 #include "RPiHTConfig.h"
 #include "RPiHTWebApp.h"
 #include "RPiHTCam.h"
+#include "Trial.h"
 
 std::atomic_bool run = true;    // we need this in either config or a separate status class,probably the latter:
 std::atomic_bool reload_config = false;                        // a Class in a header file and getter and setters
@@ -45,12 +47,26 @@ static void install_signal_handlers()
   sigaction(SIGTERM, &sa, nullptr);
 }
 
-RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig& config)
+RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig& config, Trial& trial)
   : cam(config)
   , tracker(cam, FACE_MODEL_PATH, tracker_settings(config.get_data()))
-  , webapp(config, cam, tracker)
+  , webapp(config, cam, tracker, trial)
   , joystick(config.get_device_path())
+  , trial(trial)
 { }
+
+std::string RPiUSBHeadTracker::startup_problem()
+{
+  if (!webapp.started())
+    return "The web server could not start (port taken or not allowed, or wrong address).";
+  if (!joystick.ok())
+    return "The joystick device could not be opened.";
+  cv::Mat frame;
+  uint64_t seq = 0;
+  if (!cam.wait_next(frame, seq, std::chrono::seconds(5)))
+    return "The camera delivered no picture.";
+  return "";
+}
 
 RPiUSBHeadTracker::~RPiUSBHeadTracker() = default;
 
@@ -72,6 +88,9 @@ void RPiUSBHeadTracker::run()
   TrackerState s;
 
   while (::run && not reload_config) { // ::run is the global flag; plain "run" would be this member function
+
+    if (trial.expired())
+      webapp.trial_expired();  // not confirmed in time: back to the last working settings
 
     if (tracker.ok()) {
       // One joystick report per processed camera frame
@@ -121,13 +140,41 @@ int main(int argc, char** argv) {
   printf("Current Configuration:\n\r");
   config.print();
 
+  // Settings being tried are kept only when confirmed; the last working ones
+  // wait in this file meanwhile. If it is still there, the program stopped
+  // during a trial: start with the last working settings.
+  Trial trial(config, configpath + ".trial");
+  RPiHTConfigData last_good;
+  if (trial.recover(last_good)) {
+    printf("The program stopped while trying new settings - using the last working settings\n\r");
+    config.set_data(last_good);
+  }
+
   install_signal_handlers();
 
   do
   {
-    RPiUSBHeadTracker app(config);
-    config.set_active(true);
-    app.run();
+    try {
+      RPiUSBHeadTracker app(config, trial);
+      const std::string problem = app.startup_problem();
+      if (!problem.empty()) {
+        printf("%s\n\r", problem.c_str());
+        if (trial.active()) {
+          config.set_data(trial.fail(problem));  // back to the last working settings
+          continue;
+        }
+      }
+      trial.started();  // the countdown for "Keep" starts now
+      config.set_active(true);
+      app.run();
+    }
+    catch (const std::exception& e) {
+      printf("Start failed: %s\n\r", e.what());
+      if (trial.active())
+        config.set_data(trial.fail(std::string("Start failed: ") + e.what()));
+      else
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
   } while (run);
 
   printf("Headtracker stopped\n\r");

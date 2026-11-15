@@ -25,10 +25,13 @@ public:
   HeadTracker tracker;
   RPiHTWebApp webapp;
   USBJoystick joystick;
-  RPiUSBHeadTracker(RPiHTConfig &config);
+  RPiUSBHeadTracker(RPiHTConfig &config, Trial &trial);
   ~RPiUSBHeadTracker();
+  // "" if camera, web server and joystick work; otherwise what does not
+  std::string startup_problem();
   void run();
 private:
+  Trial& trial;
 
 };
 

@@ -9,12 +9,14 @@ add_executable(rpiht_tests
   test_OneEuroFilter.cpp
   test_JoystickMapping.cpp
   test_TrackerSettings.cpp
+  test_Trial.cpp
   ${PROJECT_SOURCE_DIR}/QueryParser.cpp
   ${PROJECT_SOURCE_DIR}/RPiHTConfig.cpp
   ${PROJECT_SOURCE_DIR}/USBJoystick.cpp
   ${PROJECT_SOURCE_DIR}/HeadPose.cpp
   ${PROJECT_SOURCE_DIR}/JoystickMapping.cpp
   ${PROJECT_SOURCE_DIR}/TrackerSettings.cpp
+  ${PROJECT_SOURCE_DIR}/Trial.cpp
 )
 
 set_property(TARGET rpiht_tests PROPERTY CXX_STANDARD 20)
