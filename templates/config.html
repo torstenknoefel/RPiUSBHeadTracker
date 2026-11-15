@@ -7,8 +7,9 @@
 <body>
     {{> menu.html}}
     <style>
-        /* Room for the help text under a field before the next field's label */
-        .field:has(> .helper) { margin-bottom: 2rem; }
+        /* Room for the help text under a field before the next field's label
+           (BeerCSS leaves 2rem below every field; the help text needs more) */
+        .field:has(> .helper) { margin-bottom: 3.25rem; }
     </style>
     <main class="responsive">
        

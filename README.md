@@ -132,11 +132,11 @@ The start page shows the tracker live, about five times per second:
 
 **Centre:** look straight at the screen and press it; the head position of the next frames becomes "straight ahead". The program also does this by itself after every start.
 
-The same data is available as JSON at `/state`; `POST /centre` does what the button does. (The screenshot still shows the old placeholder page.)
+The same data is available as JSON at `/state`; `POST /centre` does what the button does.
 
 ### Adjust
 
-![Adjust page with the live camera picture](docs/images/adjust.jpg)
+![Adjust page with the live camera picture and the face found by the tracker](docs/images/adjust.jpg)
 
 Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box and five red points show where the tracker finds the face, eyes, nose tip and mouth corners. Below the picture are the tracker state and the Centre button. The picture is also available on its own at `/image`.
 
