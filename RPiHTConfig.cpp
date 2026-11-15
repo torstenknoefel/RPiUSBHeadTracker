@@ -58,6 +58,15 @@ public:
     config_data->is_active = true;
   };
   ~Impl() = default;
+  bool read(RPiHTConfigData& out) const
+  {
+    bool ok = false;
+    tao::config::internal::try_catch([&]() {
+      out = tao::config::from_file(config_path).as <RPiHTConfigData>();
+      ok = true;
+      });
+    return ok;
+  };
   void print()
   {
     v.assign(*config_data);
@@ -105,4 +114,32 @@ void RPiHTConfig::set_data(const RPiHTConfigData& new_data)
     data.is_saved = false;
     data.is_active = false;
   }
+}
+
+void RPiHTConfig::set_tracking(const RPiHTConfigData& tracking)
+{
+  if (!data.same_tracking(tracking))
+  {
+    data.copy_tracking(tracking);
+    data.is_saved = false;
+  }
+}
+
+bool RPiHTConfig::read_saved(RPiHTConfigData& out) const
+{
+  out = data;  // stays like this if the file cannot be read
+  return pImpl->read(out);
+}
+
+bool RPiHTConfig::reload()
+{
+  RPiHTConfigData saved;
+  if (!read_saved(saved))
+    return false;
+  const bool changed = !(saved == data);
+  data = saved;
+  data.is_saved = true;
+  if (changed)
+    data.is_active = false;
+  return true;
 }

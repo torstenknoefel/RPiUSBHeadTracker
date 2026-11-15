@@ -40,6 +40,15 @@ void HeadTracker::recentre()
   recentre_ = true;
 }
 
+void HeadTracker::update_settings(const TrackerSettings& settings)
+{
+  {
+    std::lock_guard<std::mutex> lock(settings_mtx_);
+    new_settings_ = settings;
+  }
+  settings_changed_ = true;
+}
+
 TrackerState HeadTracker::state() const
 {
   std::lock_guard<std::mutex> lock(mtx_);
@@ -71,6 +80,18 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
 {
   const auto started = clock_type::now();
   const double t = std::chrono::duration<double>(captured - start_).count();
+
+  // New settings from the web page: take them over between two frames
+  if (settings_changed_.exchange(false)) {
+    std::lock_guard<std::mutex> lock(settings_mtx_);
+    if (new_settings_.detect_size != settings_.detect_size)
+      detector_->setInputSize(new_settings_.detect_size);
+    if (new_settings_.min_score != settings_.min_score)
+      detector_->setScoreThreshold(new_settings_.min_score);
+    settings_ = new_settings_;
+    yaw_filter_.set_parameters(settings_.filter_min_cutoff, settings_.filter_beta);
+    pitch_filter_.set_parameters(settings_.filter_min_cutoff, settings_.filter_beta);
+  }
 
   // 1. Find the face on a small copy of the frame
   cv::Mat small, faces;

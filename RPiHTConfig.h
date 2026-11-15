@@ -26,18 +26,40 @@ struct RPiHTConfigData
   int track_detect_width = 256;  // camera frames are shrunk to this width for face detection
                                  // (height keeps the camera's aspect): larger = steadier, slower
 
-  bool is_saved;
-  bool is_active;
+  bool is_saved;   // the values are the ones in the config file
+  bool is_active;  // the program runs with these values
   bool operator== (const RPiHTConfigData& other) const
+  {
+    return same_system(other) && same_tracking(other);
+  }
+  // Joystick device, web server and camera: changing them needs a restart
+  bool same_system(const RPiHTConfigData& other) const
   {
     return device_path == other.device_path && ip == other.ip && port == other.port
       && cam_height == other.cam_height && cam_width == other.cam_width
-      && cam_framerate == other.cam_framerate && cam_verbose == other.cam_verbose
-      && track_range_x == other.track_range_x && track_range_y == other.track_range_y
+      && cam_framerate == other.cam_framerate && cam_verbose == other.cam_verbose;
+  }
+  // Head tracking: these change while the program runs
+  bool same_tracking(const RPiHTConfigData& other) const
+  {
+    return track_range_x == other.track_range_x && track_range_y == other.track_range_y
       && track_deadzone == other.track_deadzone && track_curve == other.track_curve
       && track_smoothing == other.track_smoothing && track_speed == other.track_speed
       && track_invert_x == other.track_invert_x && track_invert_y == other.track_invert_y
       && track_detect_width == other.track_detect_width;
+  }
+  // Copies the head tracking values of 'other'
+  void copy_tracking(const RPiHTConfigData& other)
+  {
+    track_range_x = other.track_range_x;
+    track_range_y = other.track_range_y;
+    track_deadzone = other.track_deadzone;
+    track_curve = other.track_curve;
+    track_smoothing = other.track_smoothing;
+    track_speed = other.track_speed;
+    track_invert_x = other.track_invert_x;
+    track_invert_y = other.track_invert_y;
+    track_detect_width = other.track_detect_width;
   }
 };
 
@@ -52,6 +74,15 @@ public:
   RPiHTConfigData& get_data() { return data; }
 
   void set_data(const RPiHTConfigData&);
+  // Takes only the head tracking values of 'tracking'. They are used right away,
+  // so the config stays active; it is unsaved if a value changed.
+  void set_tracking(const RPiHTConfigData& tracking);
+  // Reads the config file again (back to the saved values). false if the file
+  // cannot be read; the values then stay as they were.
+  bool reload();
+  // The values in the config file, without changing the current ones.
+  // false if the file cannot be read.
+  bool read_saved(RPiHTConfigData& out) const;
   [[nodiscard]]std::string get_device_path() const { return data.device_path; }
   void set_device_path(const std::string& dp) { data.device_path = dp; data.is_active = data.is_saved = false; }
   [[nodiscard]] std::string get_ip() const { return data.ip; }
