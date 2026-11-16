@@ -25,6 +25,8 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 - **Raspberry Pi camera**, tested with the Camera Module v2 (IMX219).
 - **USB cable** from the Pi's USB‑C port to the PC. The Pi is also powered through this cable.
 
+**Memory:** the running program needs about 100 MB: about 76 MB of RAM (measured on a Pi 4 with the camera at 640 × 480, 30 frames per second, face detection at 256 × 192) plus about 21 MB of the memory reserved for the camera (CMA). So it fits on a Pi with 512 MB when Raspberry Pi OS Lite (no desktop) is used; 1 GB or more leaves plenty of room. Building needs much more: on 512 MB build with `ninja -C build -j1` and swap, or build on a bigger Pi and copy the build folder.
+
 ## Setup on the Pi
 
 ### 1. Let the USB port work as a device
