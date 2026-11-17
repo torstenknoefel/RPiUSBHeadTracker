@@ -120,7 +120,7 @@ static bool port_answers(const std::string& ip, int port)
   return ok;
 }
 
-// Tracker state as JSON for the Status and Adjust pages
+// Tracker state as JSON for the web pages
 static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
 {
   crow::json::wvalue j;
@@ -158,7 +158,7 @@ public:
     if (!config_.read_saved(saved_))
       saved_ = running_;
 
-    // Tracker state for the Status and Adjust pages (polled several times per second)
+    // Tracker state for the web pages (polled several times per second)
     CROW_ROUTE(webapp, "/state")
       ([&cam, &tracker]()
         {
@@ -281,16 +281,16 @@ public:
       return page.render(ctx);
     });
 
-    // Adjust page: camera picture, face model and detection size (live, through
-    // /tracking) and the camera values (used after a restart, posted here)
+    // Adjust page: head tracking values (live, through /tracking)
     CROW_ROUTE(webapp, "/adjust")
       .methods("POST"_method, "GET"_method) ([this](const crow::request& req)
         {
           return settings_page(req, "adjust.html", "Adjust");
         });
 
-    // Config page: head tracking values (live, through /tracking) and the
-    // joystick device and web server values (used after a restart, posted here)
+    // Config page: camera picture, face model and detection size (live, through
+    // /tracking), camera, joystick device and web server values (used after a
+    // restart, posted here)
     CROW_ROUTE(webapp, "/config")
       .methods("POST"_method, "GET"_method) ([this](const crow::request& req)
         {
