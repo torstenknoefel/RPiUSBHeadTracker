@@ -179,6 +179,8 @@ The start page shows the tracker live, about five times per second:
 
 On a phone everything on this page is centred.
 
+<img src="docs/images/status-phone.jpg" alt="Status page on a phone" width="300">
+
 The same data is available as JSON at `/state`; `POST /centre` does what the button does. The status bar uses `/status` (`saved`, `active`, `trial`, `failure`); `POST /tracking` (head tracking values as form fields; fields that are not sent stay as they are), `POST /save`, `POST /revert`, `POST /restart`, `POST /keep`, `POST /undo` and `POST /dismiss` do what the Config and Adjust pages and the status bar buttons do.
 
 ### Adjust
