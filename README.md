@@ -4,7 +4,7 @@ A Raspberry Pi head tracker that a PC sees as an ordinary USB joystick.
 
 The Pi is plugged into the PC with a USB cable. It registers as a USB game controller, so games and simulators that can use a joystick need no extra driver or software. A camera on the Pi watches the player, and the program turns the camera picture into joystick movements. A small web interface lets you check the camera picture and change the settings from any browser.
 
-> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Sensitivity, dead zone and smoothing are set on the Config page; the Status page shows the tracker live and has a Centre button. With `install_service.sh` the program starts at boot and again after a crash.
+> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Face model, sensitivity, dead zone and smoothing are set on the Config page; the Status page shows the tracker live and has a Centre button. With `install_service.sh` the program starts at boot and again after a crash.
 
 ## How it works
 
@@ -16,7 +16,7 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 
 - **USB joystick:** `headtracker_device.sh` turns the Pi's USB port into a HID joystick (Linux USB gadget). The program writes joystick reports to `/dev/hidg0`: two axes (X, Y, each −127 … 127) and 32 buttons.
 - **Camera:** read through libcamera and OpenCV (via the LCCV library), in its own thread.
-- **Head tracking:** for every camera frame, a small face detection model (YuNet) finds the face and five points on it (eyes, nose tip, mouth corners). From these points the program works out how far the head is turned (yaw) and tilted (pitch), smooths the values and turns them into joystick X and Y. See [Head tracking](#head-tracking).
+- **Head tracking:** for every camera frame, a face model works out how far the head is turned (yaw) and tilted (pitch). There are two to choose from: **YuNet** finds the face and five points on it (eyes, nose tip, mouth corners) and the program computes the angles from these points; **NeuralNet** gets the angles straight from a neural network and measures nodding much better, but needs more processing power. The program smooths the values and turns them into joystick X and Y. See [Head tracking](#head-tracking).
 - **Web interface:** a small built-in web server (Crow) with three pages: Status, Adjust and Config.
 
 ## What you need
@@ -25,7 +25,9 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 - **Raspberry Pi camera**, tested with the Camera Module v2 (IMX219).
 - **USB cable** from the Pi's USB‑C port to the PC. The Pi is also powered through this cable.
 
-**Memory:** the running program needs about 100 MB: about 76 MB of RAM (measured on a Pi 4 with the camera at 640 × 480, 30 frames per second, face detection at 256 × 192) plus about 21 MB of the memory reserved for the camera (CMA). So it fits on a Pi with 512 MB when Raspberry Pi OS Lite (no desktop) is used; 1 GB or more leaves plenty of room. Building needs much more: on 512 MB build with `ninja -C build -j1` and swap, or build on a bigger Pi and copy the build folder.
+**Memory:** with the YuNet face model the running program needs about 100 MB: about 76 MB of RAM (measured on a Pi 4 with the camera at 640 × 480, 30 frames per second, face detection at 256 × 192) plus about 21 MB of the memory reserved for the camera (CMA). The NeuralNet face model adds about 50 MB (measured: 72 MB → 121 MB of RAM). So it fits on a Pi with 512 MB when Raspberry Pi OS Lite (no desktop) is used; 1 GB or more leaves plenty of room. Building needs much more: on 512 MB build with `ninja -C build -j1` and swap, or build on a bigger Pi and copy the build folder.
+
+**Processing power:** YuNet takes about 20 ms per frame on a Pi 4; NeuralNet about 25 ms and keeps all four cores busy, so it is meant for a Pi 4 or 5 at up to 30 frames per second.
 
 ## Setup on the Pi
 
@@ -58,7 +60,9 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ninja -C build
 ```
 
-The first `cmake` run needs an internet connection: it downloads the libraries listed under [Libraries](#libraries) into `build/_deps`, and the face detection model into `build/models`. Later builds in the same build folder use these copies.
+The first `cmake` run needs an internet connection: it downloads the libraries listed under [Libraries](#libraries) into `build/_deps`, and the face models into `build/models`. Later builds in the same build folder use these copies.
+
+The NeuralNet face model needs ONNX Runtime. CMake downloads its ready-built package (64-bit ARM Linux only, so a 64-bit Raspberry Pi OS is needed). On other systems, or with `-DRPIHT_NEURALNET=OFF`, the program is built with YuNet only; the Config page then shows NeuralNet as "not built in".
 
 ### 4. Create the USB joystick
 
@@ -98,7 +102,8 @@ The program reads its settings from `/etc/USBHT.json`, or from the file given wi
 | `track_smoothing` | Smoothing while the head is still, in Hz: lower = calmer, but more lag. Optional, default 1. |
 | `track_speed` | How quickly the smoothing lets fast movements through: higher = less lag. Optional, default 0.05. |
 | `track_invert_x`, `track_invert_y` | `true` reverses the direction of X or Y. Optional, default `false`. |
-| `track_detect_width` | Width in pixels the camera picture is shrunk to for face detection; the height keeps the camera's aspect ratio. Larger = steadier, above all up/down, but slower. Optional, default 256. |
+| `track_detect_width` | Width in pixels the camera picture is shrunk to for face detection with YuNet; the height keeps the camera's aspect ratio. Larger = steadier, above all up/down, but slower. Optional, default 256. |
+| `track_model` | Face model: `"yunet"` or `"neuralnet"` (see [Head tracking](#head-tracking)). Optional, default `"yunet"`. |
 
 When you press **Save** in the web interface, the program writes this file itself and adds the keys `saved` and `active`. Your user needs write permission for the file.
 
@@ -168,7 +173,7 @@ The start page shows the tracker live, about five times per second:
 - whether a face is found and the centre position is set ("Tracking", "No face found", "Setting the centre …"),
 - the joystick position as a dot in a square,
 - head turn and tilt in degrees, joystick X and Y,
-- camera and tracker frames per second, processing time and the time from camera frame to joystick values.
+- camera and tracker frames per second, the face model in use, processing time and the time from camera frame to joystick values.
 
 **Centre:** look straight at the screen and press it; the head position of the next frames becomes "straight ahead". The program also does this by itself after every start.
 
@@ -178,7 +183,7 @@ The same data is available as JSON at `/state`; `POST /centre` does what the but
 
 ![Adjust page with the live camera picture and the face found by the tracker](docs/images/adjust.jpg)
 
-Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box and five red points show where the tracker finds the face, eyes, nose tip and mouth corners. Below the picture are the tracker state and the Centre button. The picture is also available on its own at `/image`.
+Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture are the tracker state and the Centre button. The picture is also available on its own at `/image`.
 
 ### Config
 
@@ -196,7 +201,8 @@ The page has two parts.
 | **Smoothing** | Lower = calmer when holding still, but more lag. |
 | **Follow speed** | Higher = less lag on fast head movements. |
 | **Invert left/right**, **Invert up/down** | Reverse the direction of X or Y. |
-| **Face detection size** | Size the camera picture is shrunk to for finding the face. Larger = steadier, above all up/down, but more processing time (shown on the Status page). |
+| **Face model** | **YuNet** (default) or **NeuralNet**: NeuralNet measures nodding much better and is steadier, but needs more processing power. After a change the centre is set again; look straight ahead for a moment. With NeuralNet, **Range up/down** can be about as large as left/right. |
+| **Face detection size** | YuNet only: size the camera picture is shrunk to for finding the face. Larger = steadier, above all up/down, but more processing time (shown on the Status page). |
 
 **Defaults** sets all head tracking values back to the program's defaults. Changed values are not saved until you press **Save** in the status bar; **Back to saved** there returns to the values in the file.
 
@@ -242,19 +248,28 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 ## Head tracking
 
 - **Centre position:** after the start, and when you press **Centre** on the Status or Adjust page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
-- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because the five face points show a nod less clearly than a turn, so nods measure smaller than they are. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page and are used right away.
+- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because with YuNet the five face points show a nod less clearly than a turn, so nods measure smaller than they are. NeuralNet measures nods at their real size; there about 20° for both is a good start. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page and are used right away.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
-- **Face detection size:** the camera picture is shrunk before the face is searched. The default 256 × 192 keeps the face points steady; at 160 × 120 the up/down value jitters about five times as much when you hold still, but processing is faster. Change it on the Config page.
-- **False faces:** a "face" box wider than 80 % of the picture or taller than the whole picture is ignored. At some sizes the face model reports such boxes on an empty wall or in a dark room.
-- **Speed:** on a Pi 4 at 256 × 192 processing takes about 20 ms per frame, so the tracker keeps up with the camera at 30 frames per second. At 160 × 120 it takes about 9 ms, enough for 60 frames per second.
+- **Face detection size (YuNet):** the camera picture is shrunk before the face is searched. The default 256 × 192 keeps the face points steady; at 160 × 120 the up/down value jitters about five times as much when you hold still, but processing is faster. Change it on the Config page.
+- **False faces (YuNet):** a "face" box wider than 80 % of the picture or taller than the whole picture is ignored. At some sizes the face model reports such boxes on an empty wall or in a dark room.
+- **Speed (YuNet):** on a Pi 4 at 256 × 192 processing takes about 20 ms per frame, so the tracker keeps up with the camera at 30 frames per second. At 160 × 120 it takes about 9 ms, enough for 60 frames per second.
 - **Log:** every 10 s the program writes a line like `Camera: 30.0 frames/s | Tracker: 30.0 frames/s, face 100%, processing 20.5 ms, latency 21.0 ms …`.
 
-The face model (YuNet, 2022 version, MIT licence) comes from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo). CMake downloads it at configure time and checks it against its SHA256. The newer 2023 version of the model needs OpenCV 4.8; Debian bookworm has 4.6.
+The YuNet face model (2022 version, MIT licence) comes from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo). CMake downloads it at configure time and checks it against its SHA256. The newer 2023 version of the model needs OpenCV 4.8; Debian bookworm has 4.6.
+
+### NeuralNet face model
+
+NeuralNet uses the neural networks of the [opentrack](https://github.com/opentrack/opentrack) NeuralNet tracker, trained by Michael Welter (method: "OpNet: On the power of data augmentation for head pose estimation", [arXiv 2407.05357](https://arxiv.org/abs/2407.05357); training code: [opentrack/neuralnet-tracker-traincode](https://github.com/opentrack/neuralnet-tracker-traincode)). The model files are part of opentrack (ISC licence); CMake downloads them from a fixed opentrack commit and checks their SHA256. The code that runs them in this program is its own; no opentrack code is used. Note that the networks were trained partly on datasets meant for research or non-commercial use; check this before using the program commercially.
+
+- **Two networks:** `head-localizer.onnx` finds a face in the whole picture. `head-pose-0.5-small.onnx` gets a square crop around the face and returns the head rotation, a new face box and how sure it is. The new box is used for the next frame, so the localizer only runs when no face is followed.
+- **Face lost:** when the network is unsure about the rotation (more than 20°, which happens without a face in the crop: about 50° on an empty wall, about 3° on a face), the face counts as lost and the localizer searches again.
+- **Head off-centre:** the network sees only the crop. The program corrects the angles for where the face is in the picture, so moving sideways does not look like turning.
+- **Measured** on a recorded test run (Pi 4, 640 × 480): nods measured about 86° from top to bottom, YuNet only 11–19°; jitter when holding still about 0.3°, half of YuNet's. Processing about 25 ms per frame with ONNX Runtime on four cores.
 
 ## Unit tests
 
-The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values and the trial of new settings. They are built automatically when `libgtest-dev` is installed:
+The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values, the trial of new settings and the NeuralNet helpers (angles from the network's rotation, brightness, uncertainty). They are built automatically when `libgtest-dev` is installed:
 
 ```bash
 ninja -C build
@@ -284,7 +299,8 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `HeadTracker.*` | Finds the face in each frame and produces the joystick values. |
 | `TrackerSettings.*` | Tracker settings from the config values. |
 | `Trial.*` | Trying camera and connection settings, with the last working settings as fallback. |
-| `HeadPose.*` | Head angles from the five face points. |
+| `HeadPose.*` | Head angles from the five face points (YuNet). |
+| `NeuralPose.*`, `NeuralPoseMath.*` | NeuralNet face model (ONNX Runtime) and its helpers. |
 | `OneEuroFilter.h` | Smoothing filter. |
 | `JoystickMapping.*` | Head angle → joystick value (range, dead zone, curve). |
 | `RPiHTWebApp.*` | Web interface and its routes. |
@@ -308,3 +324,4 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [taocpp/json](https://github.com/taocpp/json) | JSON, used by config | `11a31e1` (main, 2025-03-11) |
 | [taocpp/PEGTL](https://github.com/taocpp/PEGTL) | Parser, used by json | `54a2e32` (main, 2025-05-18) |
 | [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
+| [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT licence) | Runs the NeuralNet face model. The ready-built release package for 64-bit ARM Linux, downloaded from the release page (there is no fork for release packages). | release 1.32.0 |

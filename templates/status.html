@@ -37,6 +37,7 @@
                 <tr><td>Joystick Y</td><td id="y">–</td></tr>
                 <tr><td>Camera</td><td id="camera_fps">–</td></tr>
                 <tr><td>Tracker</td><td id="fps">–</td></tr>
+                <tr><td>Face model</td><td id="model">–</td></tr>
                 <tr><td>Processing</td><td id="processing">–</td></tr>
                 <tr><td>Frame → joystick</td><td id="latency">–</td></tr>
             </table>
@@ -66,6 +67,7 @@
                 el("y").textContent = s.y;
                 el("camera_fps").textContent = s.camera_fps.toFixed(1) + " frames/s";
                 el("fps").textContent = s.fps.toFixed(1) + " frames/s";
+                el("model").textContent = s.model || "–";
                 el("processing").textContent = s.processing_ms.toFixed(1) + " ms";
                 el("latency").textContent = s.latency_ms.toFixed(1) + " ms";
                 // -127 … 127 -> 0 … 100 %; HID: negative Y is up

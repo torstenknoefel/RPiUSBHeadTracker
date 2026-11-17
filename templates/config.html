@@ -59,7 +59,7 @@
                 <div class="setting">
                     <div class="head"><label for="track_range_y">Range up/down</label><span class="value" id="track_range_y_v"></span></div>
                     <input type="range" id="track_range_y" name="track_range_y" min="2" max="60" step="0.5" value="{{track_range_y}}" />
-                    <div class="help">Head tilt for full joystick deflection. Nods measure smaller than turns, so this is usually lower.</div>
+                    <div class="help">Head tilt for full joystick deflection. With YuNet nods measure smaller than turns, so this is usually lower; with NeuralNet about the same as left/right.</div>
                 </div>
                 <div class="setting">
                     <div class="head"><label for="track_deadzone">Dead zone</label><span class="value" id="track_deadzone_v"></span></div>
@@ -94,14 +94,25 @@
                 </div>
 
                 <div class="field border label">
+                    <select id="track_model" name="track_model">
+                        {{#track_model_options}}
+                        <option value="{{value}}" {{selected}} {{disabled}}>{{text}}</option>
+                        {{/track_model_options}}
+                    </select>
+                    <label>Face model</label>
+                    <i>arrow_drop_down</i>
+                    <span class="helper">NeuralNet measures nodding much better and is steadier, but keeps the processor busier. The centre is set again after a change.</span>
+                </div>
+
+                <div class="field border label" id="detect_field">
                     <select id="track_detect_width" name="track_detect_width">
                         {{#track_detect_options}}
                         <option value="{{value}}" {{selected}}>{{text}}</option>
                         {{/track_detect_options}}
                     </select>
-                    <label>Face detection size</label>
+                    <label>Face detection size (YuNet)</label>
                     <i>arrow_drop_down</i>
-                    <span class="helper">Larger = steadier, above all up/down, but more processing time (see the Status page).</span>
+                    <span class="helper">Larger = steadier, above all up/down, but more processing time (see the Status page). Not used by NeuralNet.</span>
                 </div>
 
                 <nav>
@@ -175,7 +186,9 @@
         const sliders = ["track_range_x", "track_range_y", "track_deadzone", "track_curve", "track_smoothing", "track_speed"];
         const units = { track_range_x: "°", track_range_y: "°", track_deadzone: "°", track_curve: "", track_smoothing: " Hz", track_speed: "" };
         const defaults = { track_range_x: 20, track_range_y: 10, track_deadzone: 1.5, track_curve: 1, track_smoothing: 1,
-                           track_speed: 0.05, track_invert_x: false, track_invert_y: false, track_detect_width: 256 };
+                           track_speed: 0.05, track_invert_x: false, track_invert_y: false, track_detect_width: 256,
+                           track_model: "yunet" };
+        const selects = ["track_detect_width", "track_model"];
 
         // Same as map_axis() in JoystickMapping.cpp: head angle -> -127 ... 127
         function mapAxis(angle, m) {
@@ -240,6 +253,8 @@
             for (const id of sliders) el(id + "_v").textContent = (+el(id).value) + units[id];
             drawGraph("x");
             drawGraph("y");
+            // The detection size is a YuNet setting
+            el("track_detect_width").disabled = el("track_model").value !== "yunet";
         }
 
         // Send the head tracking values; the tracker uses them from the next frame
@@ -250,7 +265,7 @@
             for (const id of sliders) body.append(id, el(id).value);
             body.append("track_invert_x", el("track_invert_x").checked);
             body.append("track_invert_y", el("track_invert_y").checked);
-            body.append("track_detect_width", el("track_detect_width").value);
+            for (const id of selects) body.append(id, el(id).value);
             try {
                 const r = await fetch("/tracking", { method: "POST", body });
                 if (r.ok && window.htStatus) window.htStatus(await r.json());
@@ -259,14 +274,14 @@
 
         for (const id of sliders)
             el(id).addEventListener("input", () => { showValues(); sendSoon(); });
-        for (const id of ["track_invert_x", "track_invert_y", "track_detect_width"])
+        for (const id of ["track_invert_x", "track_invert_y", ...selects])
             el(id).addEventListener("change", () => { showValues(); send(); });
 
         el("defaults").addEventListener("click", () => {
             for (const id of sliders) el(id).value = defaults[id];
             el("track_invert_x").checked = defaults.track_invert_x;
             el("track_invert_y").checked = defaults.track_invert_y;
-            el("track_detect_width").value = defaults.track_detect_width;
+            for (const id of selects) el(id).value = defaults[id];
             showValues();
             send();
         });
