@@ -19,12 +19,12 @@
         .graph .grid { stroke: var(--outline-variant); stroke-width: 1; stroke-dasharray: 3 3; }
         .graph .dead { fill: var(--outline-variant); opacity: 0.5; }
         .graph .curve { fill: none; stroke: var(--primary); stroke-width: 2.5; }
-        .graph .dot { fill: #ff5252; }
+        .graph .dot { fill: var(--tertiary); }
         .graph text { fill: var(--on-surface-variant); font-size: 11px; }
 
         .setting { margin: 0 0 18px 0; }
         .setting .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-        .setting .value { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+        .setting .value { font-size: 1.375rem; white-space: nowrap; }
         .setting input[type=range] { width: 100%; }
         .setting .help { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
         .switches { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 8px 0 16px 0; }
@@ -38,7 +38,7 @@
         <form id="tracking" onsubmit="return false">
             <fieldset class="border round label">
                 <legend>Head tracking</legend>
-                <p class="live-note small-text"><i class="small">bolt</i>Changes are used right away. Move your head and watch the red dot.</p>
+                <p class="live-note small-text"><i class="small">bolt</i>Changes are used right away. Move your head and watch the dot on the line.</p>
 
                 <div class="graphs">
                     <div class="graph">
@@ -52,32 +52,32 @@
                 </div>
 
                 <div class="setting">
-                    <div class="head"><label for="track_range_x">Range left/right</label><span class="value" id="track_range_x_v"></span></div>
+                    <div class="head"><label for="track_range_x">Range left/right</label><span class="value readout" id="track_range_x_v"></span></div>
                     <input type="range" id="track_range_x" name="track_range_x" min="2" max="60" step="0.5" value="{{track_range_x}}" />
                     <div class="help">Head turn for full joystick deflection. Smaller = more sensitive.</div>
                 </div>
                 <div class="setting">
-                    <div class="head"><label for="track_range_y">Range up/down</label><span class="value" id="track_range_y_v"></span></div>
+                    <div class="head"><label for="track_range_y">Range up/down</label><span class="value readout" id="track_range_y_v"></span></div>
                     <input type="range" id="track_range_y" name="track_range_y" min="2" max="60" step="0.5" value="{{track_range_y}}" />
                     <div class="help">Head tilt for full joystick deflection. With YuNet nods measure smaller than turns, so this is usually lower; with NeuralNet about the same as left/right.</div>
                 </div>
                 <div class="setting">
-                    <div class="head"><label for="track_deadzone">Dead zone</label><span class="value" id="track_deadzone_v"></span></div>
+                    <div class="head"><label for="track_deadzone">Dead zone</label><span class="value readout" id="track_deadzone_v"></span></div>
                     <input type="range" id="track_deadzone" name="track_deadzone" min="0" max="10" step="0.1" value="{{track_deadzone}}" />
                     <div class="help">Movements this small around the centre give 0 (grey band in the graphs).</div>
                 </div>
                 <div class="setting">
-                    <div class="head"><label for="track_curve">Curve</label><span class="value" id="track_curve_v"></span></div>
+                    <div class="head"><label for="track_curve">Curve</label><span class="value readout" id="track_curve_v"></span></div>
                     <input type="range" id="track_curve" name="track_curve" min="0.3" max="3" step="0.1" value="{{track_curve}}" />
                     <div class="help">1 = straight line. Above 1: finer near the centre, faster towards the edge.</div>
                 </div>
                 <div class="setting">
-                    <div class="head"><label for="track_smoothing">Smoothing</label><span class="value" id="track_smoothing_v"></span></div>
+                    <div class="head"><label for="track_smoothing">Smoothing</label><span class="value readout" id="track_smoothing_v"></span></div>
                     <input type="range" id="track_smoothing" name="track_smoothing" min="0.05" max="5" step="0.05" value="{{track_smoothing}}" />
                     <div class="help">Lower = calmer when you hold still, but more lag. Default 1 Hz.</div>
                 </div>
                 <div class="setting">
-                    <div class="head"><label for="track_speed">Follow speed</label><span class="value" id="track_speed_v"></span></div>
+                    <div class="head"><label for="track_speed">Follow speed</label><span class="value readout" id="track_speed_v"></span></div>
                     <input type="range" id="track_speed" name="track_speed" min="0" max="0.5" step="0.01" value="{{track_speed}}" />
                     <div class="help">Higher = less lag on fast head movements. Default 0.05.</div>
                 </div>

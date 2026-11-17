@@ -13,10 +13,10 @@
     .statusbar nav { margin: 0; gap: 8px; flex-wrap: wrap; }
     .statusbar button { margin: 0; }
     /* own class names: BeerCSS already styles "error" */
-    .statusbar.sb-ok { --sb-color: #43a047; }
-    .statusbar.sb-changed { --sb-color: #fb8c00; }
-    .statusbar.sb-busy { --sb-color: #1e88e5; }
-    .statusbar.sb-error { --sb-color: #e53935; }
+    .statusbar.sb-ok { --sb-color: var(--success); }
+    .statusbar.sb-changed { --sb-color: var(--warning); }
+    .statusbar.sb-busy { --sb-color: var(--info); }
+    .statusbar.sb-error { --sb-color: var(--error); }
 </style>
 <div class="statusbar" id="statusbar" role="status" aria-live="polite">
     <i id="sb-icon">hourglass_empty</i>
@@ -78,7 +78,7 @@
             } else if (s.failure) {
                 look("error", "error", "Your change was undone – back to the last working settings", s.failure, ["dismiss"]);
             } else if (s.saved && s.active) {
-                look("ok", "check_circle", "Settings saved and in use", "", []);
+                look("ok", "sports_score", "Settings saved and in use", "", []);
             } else if (s.active) {
                 look("changed", "edit", "Changed settings in use – not saved",
                      "They are lost when the program restarts. Save keeps them.", ["save", "revert"]);
