@@ -156,7 +156,11 @@ The pages follow Material Design 3 (with [BeerCSS](https://www.beercss.com)). Th
 
 ### Status bar
 
-Every page starts with a bar that shows whether the settings are saved and in use:
+Every page starts with a bar in two parts, side by side (on a phone one above the other).
+
+**Left, with its flag and colour bar on the left:** what the tracker is doing right now, like a race flag: green "Tracking your head", yellow "Setting the centre …", red "No face found", or "No connection to the tracker".
+
+**Right, with its icon and colour bar on the right:** whether the settings are saved and in use:
 
 | Bar | Meaning | Buttons |
 |---|---|---|
@@ -174,7 +178,7 @@ Every page starts with a bar that shows whether the settings are saved and in us
 
 The start page shows the tracker live, about five times per second:
 
-- whether a face is found and the centre position is set, with a flag like in racing: green "Tracking your head", yellow "Setting the centre …", red "No face found",
+- whether a face is found and the centre position is set (left part of the bar at the top),
 - the joystick position as a dot in a square,
 - head turn and tilt in degrees, joystick X and Y,
 - camera and tracker frames per second, the face model in use, processing time and the time from camera frame to joystick values.
@@ -208,7 +212,7 @@ How head movements become joystick movements. Every change is used right away; n
 
 ![Config page with the live camera picture and the face found by the tracker](docs/images/config.jpg)
 
-Setting up the camera, the face model and the connections. At the top are the tracker state and the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture is the Centre button. The picture is also available on its own at `/image`.
+Setting up the camera, the face model and the connections. At the top is the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture is the Centre button. The picture is also available on its own at `/image`.
 
 **Face detection:** used right away, and you see the effect in the picture.
 

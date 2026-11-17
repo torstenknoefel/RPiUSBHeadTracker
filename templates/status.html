@@ -26,7 +26,7 @@
         /* Phones: everything in the middle */
         @media (max-width: 600px) {
             .home { text-align: center; }
-            .home .track-state, .home .status-grid, .home nav { justify-content: center; }
+            .home .status-grid, .home nav { justify-content: center; }
             .home .values { margin: 0 auto; }
         }
     </style>
@@ -34,7 +34,6 @@
         {{> statusbar.html}}
         <div class="home">
         <h5>Head tracker</h5>
-        {{> trackstate.html}}
         <div class="status-grid">
             <div class="stick" title="Joystick position"><div class="dot" id="dot"></div></div>
             <table class="values">

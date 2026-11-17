@@ -218,7 +218,10 @@
                 };
                 place("x", s.yaw, s.x);
                 place("y", s.pitch, -s.y);
-            } catch (e) { /* no connection: the dots stay where they are */ }
+                window.htTrackState(s);
+            } catch (e) {
+                window.htTrackState(null);  // no connection: the dots stay where they are
+            }
             setTimeout(live, 100);
         }
 
