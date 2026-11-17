@@ -30,14 +30,24 @@
         }
         #overlay rect { fill: none; stroke: #4caf50; stroke-width: 2; }
         #overlay circle { fill: #ff5252; }
+
+        /* Room for the help text under a field before the next field's label
+           (BeerCSS leaves 2rem below every field; the help text needs more) */
+        .field:has(> .helper) { margin-bottom: 3.25rem; }
+        .live-note { display: flex; align-items: center; gap: 6px; opacity: 0.85; margin: 0 0 12px 0; }
+        .camera-size { display: flex; flex-wrap: wrap; gap: 0 16px; }
+        /* side by side: no gap above (BeerCSS puts one between fields that follow each other) */
+        .camera-size > .field { flex: 1 1 140px; margin-top: 0 !important; }
+        .camera-size { margin-top: 16px; }
+        fieldset { margin-top: 16px; }
     </style>
     <main class="responsive">
         {{> statusbar.html}}
+        {{> trackstate.html}}
         <div class="camera-box">
             <img src="/image" class="round" alt="Camera" id="camera">
             <svg id="overlay" viewBox="0 0 640 480" preserveAspectRatio="none"></svg>
         </div>
-        <p><span class="chip" id="state">Waiting for the tracker …</span></p>
         <nav>
             <button id="centre" title="Look straight at the screen, then press">
                 <i>center_focus_strong</i>
@@ -45,12 +55,83 @@
             </button>
         </nav>
         <p class="small-text">Aim the camera so that your whole face is in the picture. The green box shows where the tracker finds the face; with the YuNet face model, red points mark the eyes, nose tip and mouth corners.</p>
+
+        <!-- Face model and detection size: used right away, through /tracking -->
+        <form id="face" onsubmit="return false">
+            <fieldset class="border round label">
+                <legend>Face detection</legend>
+                <p class="live-note small-text"><i class="small">bolt</i>Changes are used right away.</p>
+                <div class="field border label">
+                    <select id="track_model" name="track_model">
+                        {{#track_model_options}}
+                        <option value="{{value}}" {{selected}} {{disabled}}>{{text}}</option>
+                        {{/track_model_options}}
+                    </select>
+                    <label>Face model</label>
+                    <i>arrow_drop_down</i>
+                    <span class="helper">NeuralNet measures nodding much better and is steadier, but keeps the processor busier. The centre is set again after a change.</span>
+                </div>
+                <div class="field border label" id="detect_field">
+                    <select id="track_detect_width" name="track_detect_width">
+                        {{#track_detect_options}}
+                        <option value="{{value}}" {{selected}}>{{text}}</option>
+                        {{/track_detect_options}}
+                    </select>
+                    <label>Face detection size (YuNet)</label>
+                    <i>arrow_drop_down</i>
+                    <span class="helper">Larger = steadier, above all up/down, but more processing time (see the Status page). Not used by NeuralNet.</span>
+                </div>
+            </fieldset>
+        </form>
+
+        <!-- Camera: used after a restart -->
+        <form action="/adjust" method="post">
+            <input type="hidden" name="section" value="camera" />
+            <fieldset class="border round label">
+                <legend>Camera</legend>
+                <p class="small-text">Used after a restart. <b>Try these</b> restarts with them for {{trial_seconds}} seconds; press <b>Keep</b> in the bar at the top to stay with them.</p>
+                <div class="camera-size">
+                    <div class="field border label">
+                        <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" />
+                        <label>Width</label>
+                    </div>
+                    <div class="field border label">
+                        <input type="number" id="cam_height" name="cam_height" value="{{cam_height}}" />
+                        <label>Height</label>
+                    </div>
+                    <div class="field border label">
+                        <input type="number" id="cam_frate" name="cam_framerate" value="{{cam_framerate}}" />
+                        <label>Frames per second</label>
+                    </div>
+                </div>
+                <label class="checkbox">
+                    <input type="checkbox" id="cam_verbose" name="cam_verbose" value="cam_verbose" {{cam_verbose}} />
+                    <span>Detailed camera log</span>
+                </label>
+                <nav>
+                    <button type="reset" class="border" title="Put back the values this page showed when it was loaded">
+                        <i>undo</i>
+                        <span>Undo edits</span>
+                    </button>
+                    <button type="submit" name="action" value="Try" title="Restart with these values for {{trial_seconds}} seconds">
+                        <i>restart_alt</i>
+                        <span>Try these</span>
+                    </button>
+                    <button type="submit" name="action" value="Save" title="Write these values to the config file; they are used from the next start">
+                        <i>save</i>
+                        <span>Save</span>
+                    </button>
+                </nav>
+            </fieldset>
+        </form>
     </main>
     <script>
+        const el = id => document.getElementById(id);
+
         // Load the next picture only when the previous one has arrived, at most
         // about 10 per second. Requests never pile up on a slow connection, and
         // the picture is swapped only once it is complete (no flicker).
-        const camera = document.getElementById("camera");
+        const camera = el("camera");
         const interval = 100; // ms between pictures
         let shown = null;     // object URL of the picture on screen
 
@@ -75,8 +156,7 @@
         load();
 
         // Face box and points: the tracker's newest result, about 10 times per second
-        const overlay = document.getElementById("overlay");
-        const state = document.getElementById("state");
+        const overlay = el("overlay");
         const ns = "http://www.w3.org/2000/svg";
 
         function shape(name, attrs) {
@@ -99,21 +179,37 @@
                     for (const [px, py] of s.points)
                         overlay.appendChild(shape("circle", { cx: px, cy: py, r: 4 }));
                 }
-                state.textContent = !s.face ? "No face found" : (s.centred ? "Tracking" : "Setting the centre …");
-                state.className = "chip " + (s.face && s.centred ? "primary" : "error");
+                window.htTrackState(s);
             } catch (e) {
                 overlay.replaceChildren();
-                state.textContent = "No connection to the tracker";
-                state.className = "chip error";
+                window.htTrackState(null);
             }
             setTimeout(track, 100);
         }
         track();
 
-        document.getElementById("centre").addEventListener("click", async () => {
+        el("centre").addEventListener("click", async () => {
             await fetch("/centre", { method: "POST" });
         });
+
+        // Face model and detection size: sent right away; the other head
+        // tracking values (Config page) stay as they are
+        const selects = ["track_model", "track_detect_width"];
+        function showDetect() {
+            // The detection size is a YuNet setting
+            el("track_detect_width").disabled = el("track_model").value !== "yunet";
+        }
+        async function sendFace() {
+            const body = new URLSearchParams();
+            for (const id of selects) body.append(id, el(id).value);
+            try {
+                const r = await fetch("/tracking", { method: "POST", body });
+                if (r.ok && window.htStatus) window.htStatus(await r.json());
+            } catch (e) { /* the status bar shows the lost connection */ }
+        }
+        for (const id of selects)
+            el(id).addEventListener("change", () => { showDetect(); sendFace(); });
+        showDetect();
     </script>
 </body>
 </html>
-

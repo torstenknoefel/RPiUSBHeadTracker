@@ -93,27 +93,7 @@
                     </label>
                 </div>
 
-                <div class="field border label">
-                    <select id="track_model" name="track_model">
-                        {{#track_model_options}}
-                        <option value="{{value}}" {{selected}} {{disabled}}>{{text}}</option>
-                        {{/track_model_options}}
-                    </select>
-                    <label>Face model</label>
-                    <i>arrow_drop_down</i>
-                    <span class="helper">NeuralNet measures nodding much better and is steadier, but keeps the processor busier. The centre is set again after a change.</span>
-                </div>
-
-                <div class="field border label" id="detect_field">
-                    <select id="track_detect_width" name="track_detect_width">
-                        {{#track_detect_options}}
-                        <option value="{{value}}" {{selected}}>{{text}}</option>
-                        {{/track_detect_options}}
-                    </select>
-                    <label>Face detection size (YuNet)</label>
-                    <i>arrow_drop_down</i>
-                    <span class="helper">Larger = steadier, above all up/down, but more processing time (see the Status page). Not used by NeuralNet.</span>
-                </div>
+                <p class="small-text">Face model and face detection size are on the <a href="/adjust" class="link">Adjust</a> page, next to the camera picture.</p>
 
                 <nav>
                     <button type="button" class="border" id="defaults">
@@ -124,31 +104,14 @@
             </fieldset>
         </form>
 
-        <!-- Camera, web server, joystick: used after a restart -->
+        <!-- Joystick device and web server: used after a restart -->
         <form action="/config" method="post">
+            <input type="hidden" name="section" value="connection" />
             <fieldset class="border round label">
-                <legend>Camera and connection</legend>
-                <p class="live-note small-text"><i class="small">restart_alt</i>These need a restart. <b>Try these</b> restarts with them for {{trial_seconds}} seconds: press <b>Keep</b> in the bar at the top, or the last working settings come back by themselves.</p>
-                <div class="field border label">
-                    <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" />
-                    <label>Camera width</label>
-                </div>
-                <div class="field border label">
-                    <input type="number" id="cam_height" name="cam_height" value="{{cam_height}}" />
-                    <label>Camera height</label>
-                </div>
-                <div class="field border label">
-                    <input type="number" id="cam_frate" name="cam_framerate" value="{{cam_framerate}}" />
-                    <label>Camera frames per second</label>
-                </div>
-                <label class="checkbox">
-                    <input type="checkbox" id="cam_verbose" name="cam_verbose" value="cam_verbose" {{cam_verbose}} />
-                    <span>Detailed camera log</span>
-                </label>
-
+                <legend>Joystick device and web server</legend>
+                <p class="small-text">Used after a restart. <b>Try these</b> restarts with them for {{trial_seconds}} seconds; press <b>Keep</b> in the bar at the top to stay with them. Camera settings are on the <a href="/adjust" class="link">Adjust</a> page.</p>
                 <details>
-                    <summary class="small-text">Advanced: joystick device and web server</summary>
-                    <p class="small-text">Wrong values here can make the joystick or this web page unreachable.</p>
+                    <summary class="small-text">Show (wrong values here can make the joystick or this web page unreachable)</summary>
                     <div class="field border label">
                         <input type="text" id="device" name="device" value="{{device}}" />
                         <label>Joystick device</label>
@@ -165,15 +128,15 @@
                 </details>
 
                 <nav>
-                    <button type="reset" class="border">
+                    <button type="reset" class="border" title="Put back the values this page showed when it was loaded">
                         <i>undo</i>
                         <span>Undo edits</span>
                     </button>
-                    <button type="submit" name="action" value="Try">
+                    <button type="submit" name="action" value="Try" title="Restart with these values for {{trial_seconds}} seconds">
                         <i>restart_alt</i>
                         <span>Try these</span>
                     </button>
-                    <button type="submit" name="action" value="Save">
+                    <button type="submit" name="action" value="Save" title="Write these values to the config file; they are used from the next start">
                         <i>save</i>
                         <span>Save</span>
                     </button>
@@ -186,9 +149,7 @@
         const sliders = ["track_range_x", "track_range_y", "track_deadzone", "track_curve", "track_smoothing", "track_speed"];
         const units = { track_range_x: "°", track_range_y: "°", track_deadzone: "°", track_curve: "", track_smoothing: " Hz", track_speed: "" };
         const defaults = { track_range_x: 20, track_range_y: 10, track_deadzone: 1.5, track_curve: 1, track_smoothing: 1,
-                           track_speed: 0.05, track_invert_x: false, track_invert_y: false, track_detect_width: 256,
-                           track_model: "yunet" };
-        const selects = ["track_detect_width", "track_model"];
+                           track_speed: 0.05, track_invert_x: false, track_invert_y: false };
 
         // Same as map_axis() in JoystickMapping.cpp: head angle -> -127 ... 127
         function mapAxis(angle, m) {
@@ -253,8 +214,6 @@
             for (const id of sliders) el(id + "_v").textContent = (+el(id).value) + units[id];
             drawGraph("x");
             drawGraph("y");
-            // The detection size is a YuNet setting
-            el("track_detect_width").disabled = el("track_model").value !== "yunet";
         }
 
         // Send the head tracking values; the tracker uses them from the next frame
@@ -265,7 +224,6 @@
             for (const id of sliders) body.append(id, el(id).value);
             body.append("track_invert_x", el("track_invert_x").checked);
             body.append("track_invert_y", el("track_invert_y").checked);
-            for (const id of selects) body.append(id, el(id).value);
             try {
                 const r = await fetch("/tracking", { method: "POST", body });
                 if (r.ok && window.htStatus) window.htStatus(await r.json());
@@ -274,14 +232,13 @@
 
         for (const id of sliders)
             el(id).addEventListener("input", () => { showValues(); sendSoon(); });
-        for (const id of ["track_invert_x", "track_invert_y", ...selects])
+        for (const id of ["track_invert_x", "track_invert_y"])
             el(id).addEventListener("change", () => { showValues(); send(); });
 
         el("defaults").addEventListener("click", () => {
             for (const id of sliders) el(id).value = defaults[id];
             el("track_invert_x").checked = defaults.track_invert_x;
             el("track_invert_y").checked = defaults.track_invert_y;
-            for (const id of selects) el(id).value = defaults[id];
             showValues();
             send();
         });
