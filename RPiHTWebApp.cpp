@@ -120,7 +120,7 @@ static bool port_answers(const std::string& ip, int port)
   return ok;
 }
 
-// Tracker state as JSON for the Status and Adjust pages
+// Tracker state as JSON for the web pages
 static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
 {
   crow::json::wvalue j;
@@ -158,7 +158,7 @@ public:
     if (!config_.read_saved(saved_))
       saved_ = running_;
 
-    // Tracker state for the Status and Adjust pages (polled several times per second)
+    // Tracker state for the web pages (polled several times per second)
     CROW_ROUTE(webapp, "/state")
       ([&cam, &tracker]()
         {
@@ -210,7 +210,8 @@ public:
           return status_response();
         });
 
-    // Head tracking values from the Config page: used right away, no restart
+    // Head tracking values from the Config and Adjust pages: used right away, no
+    // restart. Each page sends only its own values; the others stay as they are.
     CROW_ROUTE(webapp, "/tracking").methods("POST"_method)
       ([this](const crow::request& req)
         {
@@ -280,76 +281,21 @@ public:
       return page.render(ctx);
     });
 
+    // Adjust page: head tracking values (live, through /tracking)
     CROW_ROUTE(webapp, "/adjust")
-      ([]()
+      .methods("POST"_method, "GET"_method) ([this](const crow::request& req)
         {
-          auto page = crow::mustache::load("adjust.html");
-          crow::mustache::context ctx({ {"title", "Adjust"}});
-          return page.render(ctx);
+          return settings_page(req, "adjust.html", "Adjust");
         });
 
-    // Config page. The form posts only camera, web server and joystick values
-    // ("Try" = restart with them as a trial, "Save" = write them to the file);
-    // head tracking values come through /tracking.
+    // Config page: camera picture, face model and detection size (live, through
+    // /tracking), camera, joystick device and web server values (used after a
+    // restart, posted here)
     CROW_ROUTE(webapp, "/config")
       .methods("POST"_method, "GET"_method) ([this](const crow::request& req)
-    {
-      QueryParser post = QueryParser(req.body);
-      std::lock_guard<std::mutex> lock(mtx_);
-      std::string trial_url;  // where the page finds the program after a port change
-      if (post.keys().size() > 0) // we are getting a valid response
-      {
-        if (post.get("action") == "Save" || post.get("action") == "Try")
         {
-          RPiHTConfigData tmp_config = config_.get_data();  // keeps the head tracking values
-          tmp_config.device_path = post.get("device");
-          tmp_config.ip = post.get("ip");
-          tmp_config.port = stoi(post.get("port"));
-          tmp_config.cam_height = stoi(post.get("cam_height"));
-          tmp_config.cam_width = stoi(post.get("cam_width"));
-          tmp_config.cam_framerate = stof(post.get("cam_framerate"));
-          tmp_config.cam_verbose = (post.get("cam_verbose") == "cam_verbose");
-
-          config_.set_data(tmp_config); // marks the config unsaved/inactive only if something changed
-          if (post.get("action") == "Save")
-          {
-            config_.save();
-            config_.read_saved(saved_);
-          }
-          else { // must be action "Try"
-            restart();
-            if (config_.get_data().port != running_.port)
-              trial_url = new_url(req, config_.get_data().port);
-          }
-        }
-      }
-      const auto& data = config_.get_data();
-      auto page = crow::mustache::load("config.html");
-      crow::mustache::context ctx({ {"title", "Configuration"},
-                                    {"device", data.device_path},
-                                    {"ip", data.ip},
-                                    {"port", data.port},
-                                    {"cam_height", data.cam_height},
-                                    {"cam_width", data.cam_width},
-                                    {"cam_framerate", data.cam_framerate},
-                                    {"cam_verbose", data.cam_verbose ? "checked" : ""},
-                                    {"track_range_x", number_text(data.track_range_x)},
-                                    {"track_range_y", number_text(data.track_range_y)},
-                                    {"track_deadzone", number_text(data.track_deadzone)},
-                                    {"track_curve", number_text(data.track_curve)},
-                                    {"track_smoothing", number_text(data.track_smoothing)},
-                                    {"track_speed", number_text(data.track_speed)},
-                                    {"track_invert_x", data.track_invert_x ? "checked" : ""},
-                                    {"track_invert_y", data.track_invert_y ? "checked" : ""},
-                                  });
-      ctx["track_detect_options"] = detect_options(data);
-      ctx["track_model_options"] = model_options(data);
-      if (reload_config)
-        ctx["restart_instance"] = instance_;  // the status bar shows the restart
-      ctx["trial_url"] = trial_url;
-      ctx["trial_seconds"] = int(trial_.timeout().count());
-      return page.render(ctx);
-    });
+          return settings_page(req, "config.html", "Configuration");
+        });
 
     // Newest camera frame as JPEG. Takes a copy of the frame the camera thread
     // keeps, so it never takes frames away from the head tracker.
@@ -393,6 +339,71 @@ public:
     webapp.stop();
   };
 private:
+  // The Adjust and Config pages. Their restart forms post only their own values
+  // ("Try" = restart with them as a trial, "Save" = write them to the file):
+  // "section" says which ones; an older page without it sends all of them.
+  crow::response settings_page(const crow::request& req, const char* file, const char* title)
+  {
+    QueryParser post = QueryParser(req.body);
+    std::lock_guard<std::mutex> lock(mtx_);
+    std::string trial_url;  // where the page finds the program after a port change
+    const std::string action = post.get("action");
+    if (action == "Save" || action == "Try")
+    {
+      const std::string section = post.get("section");
+      RPiHTConfigData t = config_.get_data();  // keeps the values the form does not send
+      if (section.empty() || section == "camera") {
+        t.cam_width = int(form_number(post, "cam_width", t.cam_width));
+        t.cam_height = int(form_number(post, "cam_height", t.cam_height));
+        t.cam_framerate = form_number(post, "cam_framerate", t.cam_framerate);
+        t.cam_verbose = (post.get("cam_verbose") == "cam_verbose");  // not sent when unticked
+      }
+      if (section.empty() || section == "connection") {
+        t.device_path = post.get("device", t.device_path);
+        t.ip = post.get("ip", t.ip);
+        t.port = int(form_number(post, "port", t.port));
+      }
+
+      config_.set_data(t); // marks the config unsaved/inactive only if something changed
+      if (action == "Save")
+      {
+        config_.save();
+        config_.read_saved(saved_);
+      }
+      else { // "Try"
+        restart();
+        if (config_.get_data().port != running_.port)
+          trial_url = new_url(req, config_.get_data().port);
+      }
+    }
+    const auto& data = config_.get_data();
+    auto page = crow::mustache::load(file);
+    crow::mustache::context ctx({ {"title", title},
+                                  {"device", data.device_path},
+                                  {"ip", data.ip},
+                                  {"port", data.port},
+                                  {"cam_height", data.cam_height},
+                                  {"cam_width", data.cam_width},
+                                  {"cam_framerate", number_text(data.cam_framerate)},
+                                  {"cam_verbose", data.cam_verbose ? "checked" : ""},
+                                  {"track_range_x", number_text(data.track_range_x)},
+                                  {"track_range_y", number_text(data.track_range_y)},
+                                  {"track_deadzone", number_text(data.track_deadzone)},
+                                  {"track_curve", number_text(data.track_curve)},
+                                  {"track_smoothing", number_text(data.track_smoothing)},
+                                  {"track_speed", number_text(data.track_speed)},
+                                  {"track_invert_x", data.track_invert_x ? "checked" : ""},
+                                  {"track_invert_y", data.track_invert_y ? "checked" : ""},
+                                });
+    ctx["track_detect_options"] = detect_options(data);
+    ctx["track_model_options"] = model_options(data);
+    if (reload_config)
+      ctx["restart_instance"] = instance_;  // the status bar shows the restart
+    ctx["trial_url"] = trial_url;
+    ctx["trial_seconds"] = int(trial_.timeout().count());
+    return crow::response(page.render(ctx));
+  }
+
   // Restart with the current values; a trial if camera, web server or joystick
   // values differ from the running ones. Caller holds mtx_.
   void restart()

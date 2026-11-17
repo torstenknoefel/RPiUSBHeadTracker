@@ -23,11 +23,18 @@
         .values td { padding: 4px 8px; }
         .values td:first-child { padding-right: 16px; opacity: 0.8; }
         .values td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+        /* Phones: everything in the middle */
+        @media (max-width: 600px) {
+            .home { text-align: center; }
+            .home .track-state, .home .status-grid, .home nav { justify-content: center; }
+            .home .values { margin: 0 auto; }
+        }
     </style>
     <main class="responsive">
         {{> statusbar.html}}
+        <div class="home">
         <h5>Head tracker</h5>
-        <p><span class="chip" id="state">Waiting for the tracker …</span></p>
+        {{> trackstate.html}}
         <div class="status-grid">
             <div class="stick" title="Joystick position"><div class="dot" id="dot"></div></div>
             <table class="values">
@@ -49,6 +56,7 @@
             </button>
         </nav>
         <p class="small-text">Look straight at the screen and press <b>Centre</b> to set "straight ahead". The program also does this by itself after every start.</p>
+        </div>
     </main>
     <script>
         const el = id => document.getElementById(id);
@@ -59,8 +67,7 @@
                 const r = await fetch("/state", { cache: "no-store" });
                 if (!r.ok) throw new Error(r.status);
                 const s = await r.json();
-                el("state").textContent = !s.face ? "No face found" : (s.centred ? "Tracking" : "Setting the centre …");
-                el("state").className = "chip " + (s.face && s.centred ? "primary" : "error");
+                window.htTrackState(s);
                 el("yaw").textContent = deg(s.yaw);
                 el("pitch").textContent = deg(s.pitch);
                 el("x").textContent = s.x;
@@ -74,8 +81,7 @@
                 el("dot").style.left = (50 + s.x / 127 * 50) + "%";
                 el("dot").style.top = (50 + s.y / 127 * 50) + "%";
             } catch (e) {
-                el("state").textContent = "No connection to the tracker";
-                el("state").className = "chip error";
+                window.htTrackState(null);
             }
             setTimeout(update, 200);
         }

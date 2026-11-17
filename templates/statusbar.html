@@ -52,9 +52,11 @@
                 el("sb-" + b).style.display = buttons.includes(b) ? "" : "none";
         }
 
-        // Load the Config page again with GET: reload() would send the form a second time
+        // Pages with settings (Config, Adjust) show the values after a restart or "Back to saved"
+        const settingsPage = ["/config", "/adjust"].includes(location.pathname);
+        // Load the page again with GET: reload() would send the form a second time
         // when the page came from "Try these" or "Save"
-        function reloadConfig() { location.replace("/config"); }
+        function reloadConfig() { location.replace(location.pathname); }
 
         function showRestarting() {
             look("busy", "sync", "Restarting with the new settings …",
@@ -68,7 +70,7 @@
             if (restartFrom !== null) {
                 if (s.instance === restartFrom) { showRestarting(); return; }
                 restartFrom = null;  // the restarted program answers
-                if (location.pathname === "/config") { reloadConfig(); return; }
+                if (settingsPage) { reloadConfig(); return; }
             }
             if (s.trial >= 0) {
                 look("busy", "help", "Trying new settings – keep them?",
@@ -97,7 +99,7 @@
                     // after a port change: go to the new address as soon as the program answers there
                     try {
                         const n = await fetch(trialUrl + "/status", { cache: "no-store" });
-                        if (n.ok) { location.href = trialUrl + "/config"; return; }
+                        if (n.ok) { location.href = trialUrl + location.pathname; return; }
                     } catch (e) { /* not there (yet) */ }
                 }
                 const r = await fetch("/status", { cache: "no-store" });
@@ -136,7 +138,7 @@
         el("sb-revert").addEventListener("click", async () => {
             const s = await post("/revert");
             // the Config page shows the saved values again
-            if (s && !s.restarting && location.pathname === "/config") reloadConfig();
+            if (s && !s.restarting && settingsPage) reloadConfig();
         });
         if (restartFrom !== null) showRestarting();
         poll();

@@ -4,7 +4,7 @@ A Raspberry Pi head tracker that a PC sees as an ordinary USB joystick.
 
 The Pi is plugged into the PC with a USB cable. It registers as a USB game controller, so games and simulators that can use a joystick need no extra driver or software. A camera on the Pi watches the player, and the program turns the camera picture into joystick movements. A small web interface lets you check the camera picture and change the settings from any browser.
 
-> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Face model, sensitivity, dead zone and smoothing are set on the Config page; the Status page shows the tracker live and has a Centre button. With `install_service.sh` the program starts at boot and again after a crash.
+> **Status: work in progress.** Head tracking works: turning the head moves X, tilting it moves Y. Sensitivity, dead zone and smoothing are set on the Adjust page, camera and face model on the Config page; the Status page shows the tracker live and has a Centre button. With `install_service.sh` the program starts at boot and again after a crash.
 
 ## How it works
 
@@ -158,7 +158,7 @@ Every page starts with a bar that shows whether the settings are saved and in us
 |---|---|---|
 | Green: **Settings saved and in use** | The program runs with the values from the config file. | – |
 | Amber: **Changed settings in use – not saved** | You changed head tracking values. They are lost when the program restarts. | **Save** writes them to the file. **Back to saved** returns to the values in the file. |
-| Amber: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Try now** (see [Trying camera and connection settings](#trying-camera-and-connection-settings)) |
+| Amber: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Try now** (see [Trying restart settings](#trying-restart-settings)) |
 | Blue: **Restarting with the new settings …** | Camera, web server and joystick start again. | – |
 | Blue: **Trying new settings – keep them?** | New camera or connection settings run on trial, with a countdown. | **Keep** · **Go back** |
 | Red: **Your change was undone – back to the last working settings** | The new settings failed or were not kept; the bar says why. | **OK** |
@@ -170,28 +170,24 @@ Every page starts with a bar that shows whether the settings are saved and in us
 
 The start page shows the tracker live, about five times per second:
 
-- whether a face is found and the centre position is set ("Tracking", "No face found", "Setting the centre …"),
+- whether a face is found and the centre position is set ("Tracking your head", "No face found", "Setting the centre …"),
 - the joystick position as a dot in a square,
 - head turn and tilt in degrees, joystick X and Y,
 - camera and tracker frames per second, the face model in use, processing time and the time from camera frame to joystick values.
 
 **Centre:** look straight at the screen and press it; the head position of the next frames becomes "straight ahead". The program also does this by itself after every start.
 
-The same data is available as JSON at `/state`; `POST /centre` does what the button does. The status bar uses `/status` (`saved`, `active`, `trial`, `failure`); `POST /tracking` (head tracking values as form fields), `POST /save`, `POST /revert`, `POST /restart`, `POST /keep`, `POST /undo` and `POST /dismiss` do what the Config page and the status bar buttons do.
+On a phone everything on this page is centred.
+
+<img src="docs/images/status-phone.jpg" alt="Status page on a phone" width="300">
+
+The same data is available as JSON at `/state`; `POST /centre` does what the button does. The status bar uses `/status` (`saved`, `active`, `trial`, `failure`); `POST /tracking` (head tracking values as form fields; fields that are not sent stay as they are), `POST /save`, `POST /revert`, `POST /restart`, `POST /keep`, `POST /undo` and `POST /dismiss` do what the Adjust and Config pages and the status bar buttons do.
 
 ### Adjust
 
-![Adjust page with the live camera picture and the face found by the tracker](docs/images/adjust.jpg)
+![Adjust page](docs/images/adjust.jpg)
 
-Shows the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture are the tracker state and the Centre button. The picture is also available on its own at `/image`.
-
-### Config
-
-![Config page](docs/images/config.jpg)
-
-The page has two parts.
-
-**Head tracking:** every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the blue line is the current setting, the grey band the dead zone, and the red dot shows where your head is now and what the joystick sends. Move a slider and the line changes at once.
+How head movements become joystick movements. Every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the blue line is the current setting, the grey band the dead zone, and the red dot shows where your head is now and what the joystick sends. Move a slider and the line changes at once.
 
 | Setting | Meaning |
 |---|---|
@@ -201,26 +197,46 @@ The page has two parts.
 | **Smoothing** | Lower = calmer when holding still, but more lag. |
 | **Follow speed** | Higher = less lag on fast head movements. |
 | **Invert left/right**, **Invert up/down** | Reverse the direction of X or Y. |
-| **Face model** | **YuNet** (default) or **NeuralNet**: NeuralNet measures nodding much better and is steadier, but needs more processing power. After a change the centre is set again; look straight ahead for a moment. With NeuralNet, **Range up/down** can be about as large as left/right. |
-| **Face detection size** | YuNet only: size the camera picture is shrunk to for finding the face. Larger = steadier, above all up/down, but more processing time (shown on the Status page). |
 
-**Defaults** sets all head tracking values back to the program's defaults. Changed values are not saved until you press **Save** in the status bar; **Back to saved** there returns to the values in the file.
+**Defaults** sets these values back to the program's defaults (face model and detection size on the Config page stay as they are). Changed values are not saved until you press **Save** in the status bar; **Back to saved** there returns to the values in the file.
 
-**Camera and connection:** these need a restart.
+### Config
+
+![Config page with the live camera picture and the face found by the tracker](docs/images/config.jpg)
+
+Setting up the camera, the face model and the connections. At the top are the tracker state and the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture is the Centre button. The picture is also available on its own at `/image`.
+
+**Face detection:** used right away, and you see the effect in the picture.
+
+| Setting | Meaning |
+|---|---|
+| **Face model** | **YuNet** (default) or **NeuralNet**: NeuralNet measures nodding much better and is steadier, but needs more processing power. After a change the centre is set again; look straight ahead for a moment. With NeuralNet, **Range up/down** (Adjust page) can be about as large as left/right. |
+| **Face detection size (YuNet)** | Size the camera picture is shrunk to for finding the face. Larger = steadier, above all up/down, but more processing time (shown on the Status page). Not used by NeuralNet. |
+
+**Camera:** used after a restart, see [Trying restart settings](#trying-restart-settings).
 
 | Field | Meaning |
 |---|---|
-| **Camera width**, **Camera height** | Camera picture size in pixels. |
-| **Camera frames per second** | Camera frames per second. |
+| **Width**, **Height** | Camera picture size in pixels. With the Raspberry Pi camera 640 × 480 is the camera's own smallest size; smaller sizes are shrunk from it. |
+| **Frames per second** | Camera frames per second. |
 | **Detailed camera log** | Writes detailed camera messages to the log. |
-| **Joystick device** (Advanced) | The USB joystick device, normally `/dev/hidg0`. |
-| **Web server address**, **Web server port** (Advanced) | Address and port the web interface listens on (`0.0.0.0` = all). After a port change, open the web interface at the new port. |
 
-- **Undo edits** puts these fields back to the values the page showed when it was loaded.
+**Joystick device and web server:** used after a restart. The fields are folded away, because wrong values can make the joystick or this web page unreachable.
+
+| Field | Meaning |
+|---|---|
+| **Joystick device** | The USB joystick device, normally `/dev/hidg0`. |
+| **Web server address**, **Web server port** | Address and port the web interface listens on (`0.0.0.0` = all). After a port change, open the web interface at the new port. |
+
+### Trying restart settings
+
+The Camera part and the joystick and web server part of the Config page have the same three buttons. Each sends only the values of its own part:
+
+- **Undo edits** puts the fields back to the values the page showed when it was loaded.
 - **Try these** restarts camera, web server and joystick with the new values on trial: press **Keep** in the status bar within 30 seconds, or the last working settings come back. Kept values are not saved yet; the status bar shows that.
-- **Save** writes all values to the config file. Camera and connection values are used after the next restart.
+- **Save** writes all values to the config file; these ones are used after the next restart.
 
-### Trying camera and connection settings
+The explanations in these parts are about the buttons; the status bar at the top says what state the settings are in right now.
 
 A wrong camera size, port or joystick device could make the program unusable or the web page unreachable. So these settings are only tried at first:
 
@@ -247,8 +263,8 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 
 ## Head tracking
 
-- **Centre position:** after the start, and when you press **Centre** on the Status or Adjust page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
-- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because with YuNet the five face points show a nod less clearly than a turn, so nods measure smaller than they are. NeuralNet measures nods at their real size; there about 20° for both is a good start. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Config page and are used right away.
+- **Centre position:** after the start, and when you press **Centre** on the Status or Config page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
+- **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because with YuNet the five face points show a nod less clearly than a turn, so nods measure smaller than they are. NeuralNet measures nods at their real size; there about 20° for both is a good start. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Adjust page and are used right away.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
 - **Face detection size (YuNet):** the camera picture is shrunk before the face is searched. The default 256 × 192 keeps the face points steady; at 160 × 120 the up/down value jitters about five times as much when you hold still, but processing is faster. Change it on the Config page.
