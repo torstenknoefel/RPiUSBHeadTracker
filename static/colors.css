@@ -139,3 +139,16 @@ input[type=range] { accent-color: var(--primary); }
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
 }
+.readout.upright { font-style: normal; }
+
+/* Labels next to the readouts: same typeface, upright and in capitals, like
+   the labels on a timing screen (Material 3 "label" role, brand typeface) */
+.readout-label {
+    font-family: "Barlow Condensed", Roboto, sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 1.125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--on-surface-variant);
+}
