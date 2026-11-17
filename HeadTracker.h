@@ -3,6 +3,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -11,6 +12,7 @@
 
 #include "HeadPose.h"
 #include "JoystickMapping.h"
+#include "NeuralPose.h"
 #include "OneEuroFilter.h"
 #include "RPiHTCam.h"
 #include "TrackerSettings.h"
@@ -27,19 +29,23 @@ struct TrackerState
   double processing_ms = 0;  // detection + angles for the last frame
   double latency_ms = 0;     // camera frame received -> joystick values ready
   double fps = 0;            // processed frames per second, averaged over about one second
+  std::string model;         // face model in use: "YuNet" or "NeuralNet"
 
   // Where the face was found (pixels of the full camera frame), for the web page
   cv::Size frame_size;
   cv::Rect2f box;
+  bool has_points = false;   // only YuNet finds the five points
   FacePoints points{};
 };
 
-// Reads every camera frame in its own thread, finds the face with YuNet,
-// works out the head angles and turns them into joystick X/Y.
+// Reads every camera frame in its own thread, finds the face with the chosen
+// face model (YuNet or NeuralNet), works out the head angles and turns them
+// into joystick X/Y.
 class HeadTracker
 {
 public:
-  HeadTracker(RPiHTCam& cam, const std::string& model_path, TrackerSettings settings = {});
+  // 'model_dir': folder with the model files (see CMakeLists.txt)
+  HeadTracker(RPiHTCam& cam, const std::string& model_dir, TrackerSettings settings = {});
   ~HeadTracker();
   HeadTracker(const HeadTracker&) = delete;
   HeadTracker& operator=(const HeadTracker&) = delete;
@@ -61,10 +67,18 @@ public:
 private:
   void loop();
   void process(const cv::Mat& frame, std::chrono::steady_clock::time_point captured);
+  // The face model to use now: the chosen one, or YuNet if NeuralNet cannot be loaded
+  FaceModel usable_model();
+  HeadPose detect_yunet(const cv::Mat& frame, cv::Rect2f& box, FacePoints& points, bool& has_points);
+  HeadPose detect_neural(const cv::Mat& frame, cv::Rect2f& box);
 
   RPiHTCam& cam_;
+  const std::string model_dir_;
   TrackerSettings settings_;
   cv::Ptr<cv::FaceDetectorYN> detector_;
+  std::unique_ptr<NeuralPose> neural_;  // loaded when first chosen
+  bool neural_failed_ = false;
+  FaceModel used_ = FaceModel::YuNet;
   std::thread worker_;
   std::atomic_bool running_{ false };
 

@@ -210,6 +210,7 @@ TEST_F(RPiHTConfigTest, TrackingSettingsDefaultWhenMissing)
   EXPECT_FALSE(d.track_invert_x);
   EXPECT_FALSE(d.track_invert_y);
   EXPECT_EQ(d.track_detect_width, 256);
+  EXPECT_EQ(d.track_model, "yunet");
 }
 
 TEST_F(RPiHTConfigTest, TrackingSettingsLoadFromFile)
@@ -218,10 +219,11 @@ TEST_F(RPiHTConfigTest, TrackingSettingsLoadFromFile)
     "cam_height": 1, "cam_framerate": 1.0, "cam_verbose": false,
     "track_range_x": 15, "track_range_y": 12.5, "track_deadzone": 2.0, "track_curve": 1.5,
     "track_smoothing": 0.5, "track_speed": 0.1, "track_invert_x": true, "track_invert_y": false,
-    "track_detect_width": 320 })").string();
+    "track_detect_width": 320, "track_model": "neuralnet" })").string();
   RPiHTConfig config(p);
   const auto& d = config.get_data();
   EXPECT_EQ(d.track_detect_width, 320);
+  EXPECT_EQ(d.track_model, "neuralnet");
   EXPECT_DOUBLE_EQ(d.track_range_x, 15.0);  // whole number in the file
   EXPECT_DOUBLE_EQ(d.track_range_y, 12.5);
   EXPECT_DOUBLE_EQ(d.track_deadzone, 2.0);
@@ -249,6 +251,12 @@ TEST_F(RPiHTConfigTest, ChangedTrackingSettingCountsAsChange)
   RPiHTConfigData resized = config.get_data();
   resized.track_detect_width = 160;
   EXPECT_FALSE(resized == config.get_data());
+
+  RPiHTConfigData other_model = config.get_data();
+  other_model.track_model = "neuralnet";
+  EXPECT_FALSE(other_model == config.get_data());
+  EXPECT_FALSE(other_model.same_tracking(config.get_data()));
+  EXPECT_TRUE(other_model.same_system(config.get_data()));
 }
 
 TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
@@ -265,6 +273,7 @@ TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
     changed.track_invert_x = false;
     changed.track_invert_y = true;
     changed.track_detect_width = 192;
+    changed.track_model = "neuralnet";
     config.set_data(changed);
     config.save();
   }
@@ -280,6 +289,7 @@ TEST_F(RPiHTConfigTest, SaveWritesTrackingSettingsThatLoadBack)
   EXPECT_FALSE(d.track_invert_x);
   EXPECT_TRUE(d.track_invert_y);
   EXPECT_EQ(d.track_detect_width, 192);
+  EXPECT_EQ(d.track_model, "neuralnet");
   EXPECT_EQ(d.port, 18080);  // other values unchanged
 }
 
@@ -308,6 +318,7 @@ TEST_F(RPiHTConfigTest, CopyTrackingTakesOnlyTrackingValues)
   b.track_range_y = 7;
   b.track_invert_x = true;
   b.track_detect_width = 160;
+  b.track_model = "neuralnet";
   b.port = 1;
   a.copy_tracking(b);
   EXPECT_TRUE(a.same_tracking(b));

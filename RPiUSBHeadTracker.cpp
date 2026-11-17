@@ -49,7 +49,7 @@ static void install_signal_handlers()
 
 RPiUSBHeadTracker::RPiUSBHeadTracker(RPiHTConfig& config, Trial& trial)
   : cam(config)
-  , tracker(cam, FACE_MODEL_PATH, tracker_settings(config.get_data()))
+  , tracker(cam, MODEL_DIR, tracker_settings(config.get_data()))
   , webapp(config, cam, tracker, trial)
   , joystick(config.get_device_path())
   , trial(trial)
@@ -112,9 +112,9 @@ void RPiUSBHeadTracker::run()
     if (elapsed.count() >= 10.0) {
       printf("Camera: %.1f frames/s", cam.fps());
       if (states > 0)
-        printf(" | Tracker: %.1f frames/s, face %d%%, processing %.1f ms, latency %.1f ms (max %.1f) | "
+        printf(" | Tracker (%s): %.1f frames/s, face %d%%, processing %.1f ms, latency %.1f ms (max %.1f) | "
                "yaw %.1f pitch %.1f -> x %d y %d%s",
-               states / elapsed.count(), 100 * faces / states, sum_processing / states,
+               s.model.c_str(), states / elapsed.count(), 100 * faces / states, sum_processing / states,
                sum_latency / states, max_latency, s.yaw, s.pitch, s.x, s.y, s.centred ? "" : " (centring)");
       printf("\n\r");
       fflush(stdout);

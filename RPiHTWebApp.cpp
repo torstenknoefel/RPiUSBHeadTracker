@@ -10,6 +10,7 @@
 #include "crow.h"
 
 #include "RPiHTWebApp.h"
+#include "NeuralPose.h"
 #include "QueryParser.h"
 #include "TrackerSettings.h"
 
@@ -80,6 +81,28 @@ static crow::json::wvalue detect_options(const RPiHTConfigData& data)
   return crow::json::wvalue(list);
 }
 
+// Choices for the face model, as a list for the mustache template. NeuralNet is
+// shown but cannot be chosen when the program was built without it.
+static crow::json::wvalue model_options(const RPiHTConfigData& data)
+{
+  struct Choice { const char* value; std::string text; bool usable; };
+  const Choice choices[] = {
+    { "yunet", "YuNet \xE2\x80\x93 fast, weaker up/down (default)", true },
+    { "neuralnet", NeuralPose::built_in() ? "NeuralNet \xE2\x80\x93 precise up/down, more CPU"
+                                          : "NeuralNet (not built in)", NeuralPose::built_in() },
+  };
+  std::vector<crow::json::wvalue> list;
+  for (const auto& c : choices) {
+    crow::json::wvalue o;
+    o["value"] = c.value;
+    o["text"] = c.text;
+    o["selected"] = data.track_model == c.value ? "selected" : "";
+    o["disabled"] = c.usable ? "" : "disabled";
+    list.push_back(std::move(o));
+  }
+  return crow::json::wvalue(list);
+}
+
 // true if a TCP connection to the web server's own address and port succeeds
 static bool port_answers(const std::string& ip, int port)
 {
@@ -111,13 +134,15 @@ static crow::json::wvalue state_json(const TrackerState& s, double camera_fps)
   j["camera_fps"] = camera_fps;
   j["processing_ms"] = s.processing_ms;
   j["latency_ms"] = s.latency_ms;
+  j["model"] = s.model;
   j["frame"]["width"] = s.frame_size.width;
   j["frame"]["height"] = s.frame_size.height;
   if (s.face) {
     j["box"] = crow::json::wvalue::list({ s.box.x, s.box.y, s.box.width, s.box.height });
     crow::json::wvalue::list points;
-    for (const auto& p : s.points)
-      points.push_back(crow::json::wvalue::list({ p.x, p.y }));
+    if (s.has_points)
+      for (const auto& p : s.points)
+        points.push_back(crow::json::wvalue::list({ p.x, p.y }));
     j["points"] = std::move(points);
   }
   return j;
@@ -201,6 +226,9 @@ public:
           t.track_invert_x = form_bool(post, "track_invert_x", t.track_invert_x);
           t.track_invert_y = form_bool(post, "track_invert_y", t.track_invert_y);
           t.track_detect_width = int(form_number(post, "track_detect_width", t.track_detect_width));
+          const std::string model = post.get("track_model");
+          if (model == "yunet" || (model == "neuralnet" && NeuralPose::built_in()))
+            t.track_model = model;
           config_.set_tracking(t);
           use_tracking();
           return status_response();
@@ -315,6 +343,7 @@ public:
                                     {"track_invert_y", data.track_invert_y ? "checked" : ""},
                                   });
       ctx["track_detect_options"] = detect_options(data);
+      ctx["track_model_options"] = model_options(data);
       if (reload_config)
         ctx["restart_instance"] = instance_;  // the status bar shows the restart
       ctx["trial_url"] = trial_url;

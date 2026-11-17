@@ -36,6 +36,18 @@ TEST(TrackerSettings, TakesTheConfigValues)
   EXPECT_FALSE(s.x.invert);
   EXPECT_TRUE(s.y.invert);
   EXPECT_EQ(s.detect_size, cv::Size(192, 144));
+  EXPECT_EQ(s.model, FaceModel::YuNet);
+}
+
+TEST(TrackerSettings, FaceModel)
+{
+  RPiHTConfigData d = config();
+  d.track_model = "neuralnet";
+  EXPECT_EQ(tracker_settings(d).model, FaceModel::NeuralNet);
+  d.track_model = "yunet";
+  EXPECT_EQ(tracker_settings(d).model, FaceModel::YuNet);
+  d.track_model = "something else";  // unknown: the default
+  EXPECT_EQ(tracker_settings(d).model, FaceModel::YuNet);
 }
 
 TEST(TrackerSettings, OddValuesAreKeptWithinLimits)
