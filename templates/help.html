@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    {{> head.html}}
+</head>
+<body>
+    {{> menu.html}}
+    <style>
+        .help-chips { flex-wrap: wrap; gap: 8px; margin: 0 0 16px 0; }
+        .help-chips .chip { margin: 0; }
+
+        /* Expansion panels (Material 3): a heading row that opens the text below */
+        .help-section { margin: 0 0 12px 0; border-radius: 12px; background: var(--surface-container); }
+        .help-section > summary {
+            list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; font-size: 1.125rem; font-weight: 500;
+        }
+        .help-section > summary::-webkit-details-marker { display: none; }
+        .help-section > summary > i:first-child { color: var(--primary); }
+        .help-section > summary .chev { margin-left: auto; transition: transform 0.2s; }
+        .help-section[open] > summary .chev { transform: rotate(180deg); }
+        .help-section .body { padding: 0 16px 16px 52px; }
+        .help-section .body p, .help-section .body li { line-height: 1.5; }
+        .help-section .body ol, .help-section .body ul { margin: 0 0 12px 0; padding-left: 20px; }
+        .help-section .body li { margin: 0 0 6px 0; }
+        .help-section h6 { margin: 16px 0 6px 0; font-size: 1rem; }
+
+        .tips td { padding: 6px 12px 6px 0; vertical-align: top; }
+        .tips td:first-child { width: 40%; }
+        .about td { padding: 4px 16px 4px 0; vertical-align: top; }
+        .about td:last-child { overflow-wrap: anywhere; }
+        @media (max-width: 600px) {
+            .help-section .body { padding-left: 16px; }
+            .tips td:first-child { width: auto; }
+        }
+    </style>
+    <main class="responsive">
+        {{> statusbar.html}}
+
+        <nav class="help-chips">
+            <a class="chip" href="#quick"><i>flag</i><span>Quick start</span></a>
+            <a class="chip" href="#sim"><i>sports_motorsports</i><span>In your sim</span></a>
+            <a class="chip" href="#screen"><i>dashboard</i><span>What you see</span></a>
+            <a class="chip" href="#tuning"><i>tune</i><span>Tuning</span></a>
+            <a class="chip" href="#trouble"><i>build</i><span>Problems</span></a>
+            <a class="chip" href="#about"><i>info</i><span>About</span></a>
+        </nav>
+
+        <details class="help-section" id="quick" open>
+            <summary><i>flag</i>Quick start<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <ol>
+                    <li><b>Aim the camera.</b> Open <a href="/config" class="link">Config</a> and move the camera until your whole face is in the picture and the green box follows it. The bar at the top then says <b>Tracking your head</b> with a green flag.</li>
+                    <li><b>Set the centre.</b> Sit as you drive, look straight at the screen and press <b>Centre</b> (on Status, Adjust or Config). The program also does this by itself after every start.</li>
+                    <li><b>Check the joystick on the PC.</b> On Windows press <b>Win+R</b>, type <code>joy.cpl</code> and press Enter. "RaspberryPi Head Tracker" is in the list; in <b>Properties</b> the crosshair follows your head.</li>
+                    <li><b>Bind it in your sim:</b> see <a href="#sim" class="link">In your sim</a>.</li>
+                    <li><b>Fine-tune</b> on <a href="/adjust" class="link">Adjust</a>: see <a href="#tuning" class="link">Tuning</a>.</li>
+                </ol>
+            </div>
+        </details>
+
+        <details class="help-section" id="sim">
+            <summary><i>sports_motorsports</i>In your sim<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <p>To the PC the tracker is an ordinary USB game controller with two axes:</p>
+                <ul>
+                    <li><b>X</b> – head turn, left/right</li>
+                    <li><b>Y</b> – head tilt, up/down</li>
+                </ul>
+                <p>In the sim's controller settings, assign X to the axis for looking left/right and Y to looking up/down. Sims call these differently, for example "look left/right axis", "head yaw/pitch" or "free look".</p>
+                <ul>
+                    <li>When the sim asks you to move the axis, turn your head to one side.</li>
+                    <li>Set the sim's dead zone for these axes to 0 and its curve to linear. The tracker already has its own dead zone and curve (Adjust); both together are hard to tune.</li>
+                    <li>View goes the wrong way: use <b>Invert</b> on Adjust or in the sim, not both.</li>
+                    <li>Some sims take head tracking only from TrackIR-type software, not from a joystick axis. Then <a href="https://github.com/opentrack/opentrack" class="link" target="_blank" rel="noopener">opentrack</a> on the PC can help: its "Joystick input" reads this tracker and passes the movement on to the sim.</li>
+                </ul>
+            </div>
+        </details>
+
+        <details class="help-section" id="screen">
+            <summary><i>dashboard</i>What you see<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <h6>The bar at the top, left: the tracker</h6>
+                <ul>
+                    <li><i class="fill small" style="color: var(--success)">flag</i> <b>Tracking your head</b> – everything works.</li>
+                    <li><i class="fill small" style="color: var(--warning)">flag</i> <b>Setting the centre …</b> – look straight at the screen for a moment.</li>
+                    <li><i class="fill small" style="color: var(--error)">flag</i> <b>No face found</b> – the joystick holds its position for a moment, then goes back to the middle; see <a href="#trouble" class="link">Problems</a>.</li>
+                </ul>
+                <h6>The bar at the top, right: the settings</h6>
+                <ul>
+                    <li><i class="small" style="color: var(--success)">sports_score</i> <b>Settings saved and in use</b> – nothing to do.</li>
+                    <li><b>Yellow</b> – you changed something that is not saved yet, or that needs a restart. The buttons say what you can do: <b>Save</b>, <b>Back to saved</b> or <b>Try now</b>.</li>
+                    <li><b>Blue</b> – the program restarts or tries new settings. Press <b>Keep</b> within {{trial_seconds}} seconds, or the last working settings come back.</li>
+                    <li><b>Red</b> – a change was undone (the bar says why), or there is no connection.</li>
+                </ul>
+                <h6>The pages</h6>
+                <ul>
+                    <li><a href="/" class="link">Status</a> – the joystick position and the numbers behind it, live.</li>
+                    <li><a href="/adjust" class="link">Adjust</a> – how head movements become joystick movements: range, dead zone, curve, smoothing. Used right away.</li>
+                    <li><a href="/config" class="link">Config</a> – camera picture, face model, camera size, joystick device and web server.</li>
+                </ul>
+            </div>
+        </details>
+
+        <details class="help-section" id="tuning">
+            <summary><i>tune</i>Tuning<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <p>All of these are on <a href="/adjust" class="link">Adjust</a> and work right away. Watch the dot on the graph while you move your head. Press <b>Save</b> in the bar when you like it.</p>
+                <table class="tips">
+                    <tr><td><b>The view moves too much</b></td><td>Make <b>Range</b> larger.</td></tr>
+                    <tr><td><b>I have to turn my head too far</b></td><td>Make <b>Range</b> smaller.</td></tr>
+                    <tr><td><b>The view shakes when I hold still</b></td><td>Make <b>Dead zone</b> larger or <b>Smoothing</b> lower. On Config: the <b>NeuralNet</b> face model, or with YuNet a larger <b>face detection size</b>.</td></tr>
+                    <tr><td><b>Small movements do nothing</b></td><td>Make <b>Dead zone</b> smaller.</td></tr>
+                    <tr><td><b>The view lags behind quick turns</b></td><td>Make <b>Follow speed</b> higher.</td></tr>
+                    <tr><td><b>Nodding hardly moves the view</b></td><td>Use the <b>NeuralNet</b> face model (Config), or make <b>Range up/down</b> smaller.</td></tr>
+                    <tr><td><b>Fine near the middle, fast at the edge</b></td><td><b>Curve</b> above 1.</td></tr>
+                    <tr><td><b>The middle is off</b> (after moving the seat or the camera)</td><td>Look straight ahead and press <b>Centre</b>.</td></tr>
+                </table>
+                <p><b>Defaults</b> on Adjust puts these values back to where they started.</p>
+            </div>
+        </details>
+
+        <details class="help-section" id="trouble">
+            <summary><i>build</i>Problems<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <h6>No face found</h6>
+                <ul>
+                    <li>Light your face from the front; a bright window behind you makes the face too dark.</li>
+                    <li>Your whole face must be in the picture (Config), not too small: sit closer or aim the camera better.</li>
+                    <li>Strong reflections on glasses can disturb the tracker; try a slightly different angle.</li>
+                </ul>
+                <h6>The PC does not see the joystick</h6>
+                <ul>
+                    <li>Use a data cable, not a charge-only cable, in the Pi's USB-C port.</li>
+                    <li>The Pi's USB port must be set up as a device and the joystick created (README, setup steps 1 and 4).</li>
+                </ul>
+                <h6>The joystick moves, the view in the sim does not</h6>
+                <ul>
+                    <li>Check the binding in the sim (<a href="#sim" class="link">In your sim</a>); some sims only read controllers that were connected before the sim started.</li>
+                </ul>
+                <h6>New camera or connection settings were undone</h6>
+                <ul>
+                    <li>New settings are only tried first. If the camera, the joystick or the web server does not start with them, or you do not press <b>Keep</b> within {{trial_seconds}} seconds, the last working settings come back. The bar says why.</li>
+                </ul>
+                <h6>The page is gone after changing the port</h6>
+                <ul>
+                    <li>Open the page at the new port. If that port does not work, the program goes back to the old one after {{trial_seconds}} seconds.</li>
+                </ul>
+                <h6>No connection to the tracker</h6>
+                <ul>
+                    <li>The program is not running or the network is down. On the Pi, <code>systemctl status headtracker</code> shows whether it runs, and <code>journalctl -u headtracker -b</code> shows its log.</li>
+                </ul>
+                <p>More in the <a href="https://github.com/torstenknoefel/RPiUSBHeadTracker#troubleshooting" class="link" target="_blank" rel="noopener">README</a>.</p>
+            </div>
+        </details>
+
+        <details class="help-section" id="about">
+            <summary><i>info</i>About this tracker<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <table class="about">
+                    <tr><td class="readout-label">Version</td><td id="i-version">–</td></tr>
+                    <tr><td class="readout-label">Name</td><td id="i-host">–</td></tr>
+                    <tr><td class="readout-label">Web page at</td><td id="i-urls">–</td></tr>
+                    <tr><td class="readout-label">Camera</td><td id="i-camera">–</td></tr>
+                    <tr><td class="readout-label">Face model</td><td id="i-model">–</td></tr>
+                    <tr><td class="readout-label">Joystick device</td><td id="i-device">–</td></tr>
+                    <tr><td class="readout-label">Config file</td><td id="i-config">–</td></tr>
+                    <tr><td class="readout-label">Running for</td><td id="i-uptime">–</td></tr>
+                    <tr><td class="readout-label">OpenCV</td><td id="i-opencv">–</td></tr>
+                </table>
+                <p>
+                    <a href="https://github.com/torstenknoefel/RPiUSBHeadTracker#readme" class="link" target="_blank" rel="noopener">README: setup and details</a> ·
+                    <a href="https://github.com/torstenknoefel/RPiUSBHeadTracker/issues" class="link" target="_blank" rel="noopener">Problems or ideas</a>
+                </p>
+            </div>
+        </details>
+    </main>
+    <script>
+        const el = id => document.getElementById(id);
+
+        // A link to a part (chips, "#tuning" from other pages) opens that part
+        function openFromHash() {
+            const part = location.hash ? document.getElementById(location.hash.slice(1)) : null;
+            if (part && part.tagName === "DETAILS") {
+                part.open = true;
+                part.scrollIntoView({ block: "start" });
+            }
+        }
+        window.addEventListener("hashchange", openFromHash);
+        openFromHash();
+
+        // Tracker state for the bar at the top
+        async function track() {
+            try {
+                const r = await fetch("/state", { cache: "no-store" });
+                if (!r.ok) throw new Error(r.status);
+                window.htTrackState(await r.json());
+            } catch (e) {
+                window.htTrackState(null);
+            }
+            setTimeout(track, 500);
+        }
+        track();
+
+        function duration(s) {
+            const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+            if (d > 0) return d + " d " + h + " h";
+            if (h > 0) return h + " h " + m + " min";
+            return m + " min";
+        }
+
+        // About this tracker
+        async function info() {
+            try {
+                const r = await fetch("/info", { cache: "no-store" });
+                if (!r.ok) throw new Error(r.status);
+                const i = await r.json();
+                el("i-version").textContent = i.version;
+                el("i-host").textContent = i.hostname || "–";
+                const urls = el("i-urls");
+                urls.replaceChildren();
+                for (const host of [i.hostname, ...i.addresses].filter(Boolean)) {
+                    const a = document.createElement("a");
+                    a.href = a.textContent = "http://" + host + ":" + i.port;
+                    a.className = "link";
+                    urls.append(a, document.createElement("br"));
+                }
+                el("i-camera").textContent = i.camera.width + " × " + i.camera.height + ", " +
+                    i.camera.framerate + " frames/s set, " + i.camera_fps.toFixed(1) + " frames/s now";
+                el("i-model").textContent = (i.model === "neuralnet" ? "NeuralNet" : "YuNet") +
+                    (i.neuralnet_built_in ? "" : " (NeuralNet not built in)");
+                el("i-device").textContent = i.device;
+                el("i-config").textContent = i.config_file;
+                el("i-uptime").textContent = duration(i.uptime_s);
+                el("i-opencv").textContent = i.opencv;
+            } catch (e) { /* the bar shows the lost connection */ }
+            setTimeout(info, 10000);
+        }
+        info();
+    </script>
+</body>
+</html>

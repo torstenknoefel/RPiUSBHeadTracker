@@ -89,6 +89,8 @@ public:
   // settings while new ones are tried). false on failure.
   bool write_file(const std::string& path, const RPiHTConfigData& d) const;
   bool read_file(const std::string& path, RPiHTConfigData& out) const;
+  // Path of the config file the program was started with
+  [[nodiscard]] std::string file_path() const;
   [[nodiscard]]std::string get_device_path() const { return data.device_path; }
   void set_device_path(const std::string& dp) { data.device_path = dp; data.is_active = data.is_saved = false; }
   [[nodiscard]] std::string get_ip() const { return data.ip; }

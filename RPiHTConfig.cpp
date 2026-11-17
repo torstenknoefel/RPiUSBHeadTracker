@@ -59,6 +59,7 @@ public:
     config_data->is_active = true;
   };
   ~Impl() = default;
+  const std::filesystem::path& path() const { return config_path; }
   bool read(RPiHTConfigData& out) const
   {
     return read_from(config_path, out);
@@ -165,4 +166,9 @@ bool RPiHTConfig::write_file(const std::string& path, const RPiHTConfigData& d) 
 bool RPiHTConfig::read_file(const std::string& path, RPiHTConfigData& out) const
 {
   return Impl::read_from(path, out);
+}
+
+std::string RPiHTConfig::file_path() const
+{
+  return pImpl->path().string();
 }

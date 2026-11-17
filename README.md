@@ -261,7 +261,20 @@ On a phone the form uses the whole width and the menu is at the bottom:
 
 ### Help
 
-The Help entry in the menu has no page yet.
+![Help page](docs/images/help.jpg)
+
+Short help for using the tracker, in parts that open with a click (the chips at the top jump to them):
+
+- **Quick start:** aim the camera, set the centre, check the joystick on the PC, bind it in the sim, fine-tune.
+- **In your sim:** binding the two axes, the sim's own dead zone and curve, inverting, and [opentrack](https://github.com/opentrack/opentrack) for sims that take head tracking only from TrackIR-type software.
+- **What you see:** the flags and colours of the bar at the top, and what each page is for.
+- **Tuning:** what to change on Adjust for a symptom ("the view shakes when I hold still", "nodding hardly moves the view" …).
+- **Problems:** no face found, the PC does not see the joystick, settings undone, the page gone after a port change, no connection.
+- **About this tracker:** version, name and addresses of the Pi, camera, face model, joystick device, config file, running time and OpenCV version, from `/info` (JSON).
+
+The **?** next to a heading on the other pages opens the matching part, for example `/help#tuning` from Adjust.
+
+The version is set in `project()` in `CMakeLists.txt` (now 0.1.0); release tags must match it.
 
 ## Checking the joystick on the PC
 
@@ -293,7 +306,7 @@ NeuralNet uses the neural networks of the [opentrack](https://github.com/opentra
 
 ## Unit tests
 
-The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values, the trial of new settings and the NeuralNet helpers (angles from the network's rotation, brightness, uncertainty). They are built automatically when `libgtest-dev` is installed:
+The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values, the trial of new settings, the config file path and the NeuralNet helpers (angles from the network's rotation, brightness, uncertainty). They are built automatically when `libgtest-dev` is installed:
 
 ```bash
 ninja -C build
