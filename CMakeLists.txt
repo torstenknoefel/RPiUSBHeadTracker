@@ -12,7 +12,7 @@ endif()
 project (RPiUSBHeadTracker LANGUAGES CXX)
 add_compile_definitions(ASIO_STANDALONE)
 # Add source to this project's executable.
-add_executable (RPiUSBHeadTracker "RPiUSBHeadTracker.cpp" "RPiUSBHeadTracker.h" "USBJoystick.h" "USBJoystick.cpp" "RPiHTWebServer.cpp" "RPiHTConfig.h" "RPiHTConfig.cpp" "RPiHTWebApp.h" "RPiHTWebApp.cpp" "QueryParser.h" "QueryParser.cpp"  "RPiHTCam.cpp" "RPiHTCam.h" "CmdParser.h" "HeadTracker.h" "HeadTracker.cpp" "TrackerSettings.h" "TrackerSettings.cpp" "Trial.h" "Trial.cpp" "HeadPose.h" "HeadPose.cpp" "JoystickMapping.h" "JoystickMapping.cpp" "OneEuroFilter.h")
+add_executable (RPiUSBHeadTracker "RPiUSBHeadTracker.cpp" "RPiUSBHeadTracker.h" "USBJoystick.h" "USBJoystick.cpp" "RPiHTWebServer.cpp" "RPiHTConfig.h" "RPiHTConfig.cpp" "RPiHTWebApp.h" "RPiHTWebApp.cpp" "QueryParser.h" "QueryParser.cpp"  "RPiHTCam.cpp" "RPiHTCam.h" "CmdParser.h" "HeadTracker.h" "HeadTracker.cpp" "TrackerSettings.h" "TrackerSettings.cpp" "Trial.h" "Trial.cpp" "HeadPose.h" "HeadPose.cpp" "NeuralPose.h" "NeuralPose.cpp" "NeuralPoseMath.h" "NeuralPoseMath.cpp" "JoystickMapping.h" "JoystickMapping.cpp" "OneEuroFilter.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RPiUSBHeadTracker PROPERTY CXX_STANDARD 20)
@@ -68,30 +68,68 @@ set(BUILD_SHARED_LIBS OFF)
 
 FetchContent_MakeAvailable(pegtl taocpp-json taocpp-config crow lccv)
 
+# Downloads a model file into <build dir>/models (where the program loads it
+# from), unless it is already there with the right SHA256. The URLs are tried
+# in order.
+function(download_model name sha256 problem)
+  set(_file "${CMAKE_CURRENT_BINARY_DIR}/models/${name}")
+  if (EXISTS "${_file}")
+    file(SHA256 "${_file}" _hash)
+    if (_hash STREQUAL sha256)
+      return()
+    endif()
+  endif()
+  foreach(_url IN LISTS ARGN)
+    message(STATUS "Downloading ${name} from ${_url}")
+    file(DOWNLOAD "${_url}" "${_file}" EXPECTED_HASH SHA256=${sha256} STATUS _status)
+    list(GET _status 0 _code)
+    if (_code EQUAL 0)
+      return()
+    endif()
+    message(WARNING "Download of ${name} failed: ${_status}")
+  endforeach()
+  message(WARNING "${name} missing - ${problem}")
+endfunction()
+
 # Face detection model for the head tracker: YuNet, 2022 version (the 2023
 # version needs OpenCV 4.8; Debian bookworm has 4.6). From the OpenCV model zoo
 # (MIT licence), stored with Git LFS, pinned to a commit and checked by SHA256.
-# Downloaded into <build dir>/models, where the program loads it from.
-set(FACE_MODEL_FILE "${CMAKE_CURRENT_BINARY_DIR}/models/face_detection_yunet_2022mar.onnx")
-set(FACE_MODEL_SHA256 50ef07f702a31741ca46a4c0d947773b64143b9362780237bf0d427d6c79bab7)
-set(FACE_MODEL_URLS
+download_model(face_detection_yunet_2022mar.onnx
+  50ef07f702a31741ca46a4c0d947773b64143b9362780237bf0d427d6c79bab7
+  "the head tracker will not work"
   https://media.githubusercontent.com/media/opencv/opencv_zoo/7e062e54cf5410c09b795ff71b4a255e58498c79/models/face_detection_yunet/face_detection_yunet_2022mar.onnx
 )
-if (EXISTS "${FACE_MODEL_FILE}")
-  file(SHA256 "${FACE_MODEL_FILE}" _face_model_hash)
-endif()
-if (NOT _face_model_hash STREQUAL FACE_MODEL_SHA256)
-  foreach(_url IN LISTS FACE_MODEL_URLS)
-    message(STATUS "Downloading face model from ${_url}")
-    file(DOWNLOAD "${_url}" "${FACE_MODEL_FILE}" EXPECTED_HASH SHA256=${FACE_MODEL_SHA256} STATUS _status)
-    list(GET _status 0 _code)
-    if (_code EQUAL 0)
-      break()
-    endif()
-    message(WARNING "Face model download failed: ${_status}")
-  endforeach()
-  if (NOT _code EQUAL 0)
-    message(WARNING "No face model - the head tracker will not work")
+
+# Second face model, "NeuralNet": the head pose models of the opentrack NeuralNet
+# tracker (by Michael Welter, https://github.com/opentrack/opentrack, ISC licence),
+# run with ONNX Runtime (MIT licence). Measures nodding much better than YuNet's
+# five points, but needs more CPU. ONNX Runtime is downloaded as the ready-built
+# package from its GitHub release (64-bit ARM Linux only), pinned and checked by
+# SHA256; there is no fork for release packages.
+option(RPIHT_NEURALNET "Build the NeuralNet face model (downloads ONNX Runtime)" ON)
+set(RPIHT_HAVE_NEURALNET OFF)
+if (RPIHT_NEURALNET)
+  if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+    FetchContent_Declare(onnxruntime
+      URL      https://github.com/microsoft/onnxruntime/releases/download/v1.32.0/onnxruntime-linux-aarch64-1.32.0.tgz
+      URL_HASH SHA256=81a46251dd90da4122f4b9ceb4433f836fbc79ee1eddffca7c09033af81a1939
+    )
+    FetchContent_MakeAvailable(onnxruntime)  # just unpacks: the package has no CMakeLists.txt
+    add_library(onnxruntime_prebuilt SHARED IMPORTED)
+    set_target_properties(onnxruntime_prebuilt PROPERTIES
+      IMPORTED_LOCATION "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.1.32.0"
+      INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_SOURCE_DIR}/include"
+    )
+    set(_opentrack https://raw.githubusercontent.com/opentrack/opentrack/03a0e69b02a11c425e2f07c728686ff7f2d6517a/tracker-neuralnet/models)
+    download_model(head-localizer.onnx
+      f26679fe5e01a08dab0b3b9b586b613c68622775e0b8e14ddae53f30391f7402
+      "the NeuralNet face model will not work" ${_opentrack}/head-localizer.onnx)
+    download_model(head-pose-0.5-small.onnx
+      7c14f84114fb9eca89759d8a36350c6faae2b4187258cae07afb77a93c2d7eec
+      "the NeuralNet face model will not work" ${_opentrack}/head-pose-0.5-small.onnx)
+    set(RPIHT_HAVE_NEURALNET ON)
+  else()
+    message(STATUS "NeuralNet face model: no ONNX Runtime package for ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR} - only YuNet is built")
   endif()
 endif()
 
@@ -120,6 +158,10 @@ add_dependencies( RPiUSBHeadTracker staticfiles)
 #find_package(Drogon CONFIG REQUIRED)
 #target_link_libraries(${PROJECT_NAME} PRIVATE "libdrogon.a" "libtrantor.a"  "libz.a" "libssl.a" "libcrypto.a" "libyaml-cpp.a" "jsoncpp" "cares" "brotlicommon" "brotlidec" "brotlienc" "uuid")
 target_link_libraries(${PROJECT_NAME} PRIVATE libssl.a ${OpenCV_LIBS} liblccv Crow::Crow taocpp::config)
+if (RPIHT_HAVE_NEURALNET)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE RPIHT_HAVE_NEURALNET=1)
+  target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime_prebuilt)
+endif()
 
 
 
