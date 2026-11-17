@@ -156,7 +156,7 @@ The pages follow Material Design 3 (with [BeerCSS](https://www.beercss.com)). Th
 
 ### Status bar
 
-Every page starts with a bar in two parts, side by side (on a phone one above the other).
+Every page starts with a bar in two halves of the same width, side by side on every screen. On a phone the buttons in it show only their icons (the name appears as a tooltip), and the detail line is shown only while the program restarts or tries new settings.
 
 **Left, with its flag and colour bar on the left:** what the tracker is doing right now, like a race flag: green "Tracking your head", yellow "Setting the centre …", red "No face found", or "No connection to the tracker".
 
