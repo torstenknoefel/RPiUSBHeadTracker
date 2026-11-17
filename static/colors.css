@@ -152,3 +152,8 @@ input[type=range] { accent-color: var(--primary); }
     letter-spacing: 0.05em;
     color: var(--on-surface-variant);
 }
+
+/* Small "?" next to a heading: opens the matching part of the Help page */
+.help-link { display: inline-flex; vertical-align: middle; text-decoration: none; }
+.help-link i { font-size: 1.125rem; color: var(--primary); }
+h5 .help-link i { font-size: 1.375rem; }

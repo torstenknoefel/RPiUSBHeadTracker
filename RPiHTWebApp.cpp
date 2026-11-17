@@ -3,6 +3,8 @@
 #include <regex>
 
 #include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -118,6 +120,42 @@ static bool port_answers(const std::string& ip, int port)
   const bool ok = ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
   ::close(fd);
   return ok;
+}
+
+#ifndef RPIHT_VERSION
+#define RPIHT_VERSION "unknown"  // set by CMake from project(VERSION)
+#endif
+
+// When the program started, for the uptime on the Help page (the web app
+// itself starts again with every restart)
+static const auto program_start = std::chrono::steady_clock::now();
+
+// Name of this computer ("dacia")
+static std::string host_name()
+{
+  char name[256] = {};
+  return gethostname(name, sizeof(name) - 1) == 0 ? std::string(name) : std::string();
+}
+
+// IPv4 addresses of this computer's network connections that are up,
+// without the loopback address
+static std::vector<std::string> own_addresses()
+{
+  std::vector<std::string> list;
+  ifaddrs* all = nullptr;
+  if (getifaddrs(&all) != 0)
+    return list;
+  for (const ifaddrs* a = all; a != nullptr; a = a->ifa_next) {
+    if (a->ifa_addr == nullptr || a->ifa_addr->sa_family != AF_INET
+        || (a->ifa_flags & IFF_LOOPBACK) || !(a->ifa_flags & IFF_UP))
+      continue;
+    char text[INET_ADDRSTRLEN] = {};
+    const auto* in = reinterpret_cast<const sockaddr_in*>(a->ifa_addr);
+    if (inet_ntop(AF_INET, &in->sin_addr, text, sizeof(text)) != nullptr)
+      list.emplace_back(text);
+  }
+  freeifaddrs(all);
+  return list;
 }
 
 // Tracker state as JSON for the web pages
@@ -295,6 +333,47 @@ public:
       .methods("POST"_method, "GET"_method) ([this](const crow::request& req)
         {
           return settings_page(req, "config.html", "Configuration");
+        });
+
+    // Help page; its "About this tracker" part loads /info
+    CROW_ROUTE(webapp, "/help")
+      ([this]()
+        {
+          auto page = crow::mustache::load("help.html");
+          crow::mustache::context ctx({ {"title", "Help"} });
+          ctx["trial_seconds"] = int(trial_.timeout().count());
+          return crow::response(page.render(ctx));
+        });
+
+    // Facts about this tracker for the Help page
+    CROW_ROUTE(webapp, "/info")
+      ([this, &cam]()
+        {
+          crow::json::wvalue j;
+          {
+            std::lock_guard<std::mutex> lock(mtx_);
+            j["port"] = running_.port;
+            j["device"] = running_.device_path;
+            j["camera"]["width"] = running_.cam_width;
+            j["camera"]["height"] = running_.cam_height;
+            j["camera"]["framerate"] = running_.cam_framerate;
+            j["model"] = running_.track_model;
+          }
+          j["version"] = RPIHT_VERSION;
+          j["hostname"] = host_name();
+          crow::json::wvalue::list addresses;
+          for (const auto& a : own_addresses())
+            addresses.push_back(a);
+          j["addresses"] = std::move(addresses);
+          j["config_file"] = config_.file_path();
+          j["neuralnet_built_in"] = NeuralPose::built_in();
+          j["camera_fps"] = cam.fps();
+          j["uptime_s"] = int64_t(std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::steady_clock::now() - program_start).count());
+          j["opencv"] = CV_VERSION;
+          auto response = crow::response(j);
+          response.set_header("Cache-Control", "no-store");
+          return response;
         });
 
     // Newest camera frame as JPEG. Takes a copy of the frame the camera thread

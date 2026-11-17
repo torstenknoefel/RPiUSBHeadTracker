@@ -379,3 +379,9 @@ TEST_F(RPiHTConfigTest, ReloadOfAMissingFileKeepsTheValues)
   EXPECT_FALSE(config.reload());
   EXPECT_DOUBLE_EQ(config.get_data().track_range_x, 40.0);
 }
+
+TEST_F(RPiHTConfigTest, FilePathIsThePathItWasStartedWith)
+{
+  RPiHTConfig config(path);
+  EXPECT_EQ(config.file_path(), path);
+}

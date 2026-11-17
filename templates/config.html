@@ -60,7 +60,7 @@
         <!-- Face model and detection size: used right away, through /tracking -->
         <form id="face" onsubmit="return false">
             <fieldset class="border round label">
-                <legend>Face detection</legend>
+                <legend>Face detection <a href="/help#trouble" class="help-link" title="Help: no face found" aria-label="Help: no face found"><i>help</i></a></legend>
                 <p class="live-note small-text"><i class="small">bolt</i>Changes are used right away.</p>
                 <div class="field border label">
                     <select id="track_model" name="track_model">
@@ -89,7 +89,7 @@
         <form action="/config" method="post">
             <input type="hidden" name="section" value="camera" />
             <fieldset class="border round label">
-                <legend>Camera</legend>
+                <legend>Camera <a href="/help#trouble" class="help-link" title="Help: settings undone" aria-label="Help: settings undone"><i>help</i></a></legend>
                 <p class="small-text">Used after a restart. <b>Try these</b> restarts with them for {{trial_seconds}} seconds; press <b>Keep</b> in the bar at the top to stay with them.</p>
                 <div class="camera-size">
                     <div class="field border label">
@@ -130,7 +130,7 @@
         <form action="/config" method="post">
             <input type="hidden" name="section" value="connection" />
             <fieldset class="border round label">
-                <legend>Joystick device and web server</legend>
+                <legend>Joystick device and web server <a href="/help#trouble" class="help-link" title="Help: problems" aria-label="Help: problems"><i>help</i></a></legend>
                 <p class="small-text">Used after a restart, like the camera values above.</p>
                 <details>
                     <summary class="small-text">Show (wrong values here can make the joystick or this web page unreachable)</summary>
