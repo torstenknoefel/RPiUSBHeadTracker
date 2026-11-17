@@ -1,5 +1,7 @@
 # RPiUSBHeadTracker
 
+<img src="static/logo.svg" alt="Head Tracker logo: a driver's head in a steering wheel" width="96" align="right">
+
 A Raspberry Pi head tracker that a PC sees as an ordinary USB joystick.
 
 The Pi is plugged into the PC with a USB cable. It registers as a USB game controller, so games and simulators that can use a joystick need no extra driver or software. A camera on the Pi watches the player, and the program turns the camera picture into joystick movements. A small web interface lets you check the camera picture and change the settings from any browser.
@@ -150,15 +152,21 @@ The first argument is the config file (default `/etc/USBHT.json`), the second th
 
 Open `http://<address of the Pi>:18080` in a browser on the PC or on a phone in the same network. The menu on the left switches between the pages. On a phone the menu moves to the bottom of the screen.
 
+The pages follow Material Design 3 (with [BeerCSS](https://www.beercss.com)). The colours are a Material 3 scheme made from racing red (`#e8412b`) in `static/colors.css`, with a light and a dark version; the browser's or the system's setting picks one. Numbers are shown in Barlow Condensed italic, like a timing screen. The logo is `static/logo.svg`.
+
 ### Status bar
 
-Every page starts with a bar that shows whether the settings are saved and in use:
+Every page starts with a bar in two halves of the same width, side by side on every screen. On a phone the buttons in it show only their icons (the name appears as a tooltip), and the detail line is shown only while the program restarts or tries new settings.
+
+**Left, with its flag and colour bar on the left:** what the tracker is doing right now, like a race flag: green "Tracking your head", yellow "Setting the centre …", red "No face found", or "No connection to the tracker".
+
+**Right, with its icon and colour bar on the right:** whether the settings are saved and in use:
 
 | Bar | Meaning | Buttons |
 |---|---|---|
-| Green: **Settings saved and in use** | The program runs with the values from the config file. | – |
-| Amber: **Changed settings in use – not saved** | You changed head tracking values. They are lost when the program restarts. | **Save** writes them to the file. **Back to saved** returns to the values in the file. |
-| Amber: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Try now** (see [Trying restart settings](#trying-restart-settings)) |
+| Green, chequered flag: **Settings saved and in use** | The program runs with the values from the config file. | – |
+| Yellow: **Changed settings in use – not saved** | You changed head tracking values. They are lost when the program restarts. | **Save** writes them to the file. **Back to saved** returns to the values in the file. |
+| Yellow: **Saved, but not in use yet** | Camera or connection values were saved but need a restart. | **Try now** (see [Trying restart settings](#trying-restart-settings)) |
 | Blue: **Restarting with the new settings …** | Camera, web server and joystick start again. | – |
 | Blue: **Trying new settings – keep them?** | New camera or connection settings run on trial, with a countdown. | **Keep** · **Go back** |
 | Red: **Your change was undone – back to the last working settings** | The new settings failed or were not kept; the bar says why. | **OK** |
@@ -170,7 +178,7 @@ Every page starts with a bar that shows whether the settings are saved and in us
 
 The start page shows the tracker live, about five times per second:
 
-- whether a face is found and the centre position is set ("Tracking your head", "No face found", "Setting the centre …"),
+- whether a face is found and the centre position is set (left part of the bar at the top),
 - the joystick position as a dot in a square,
 - head turn and tilt in degrees, joystick X and Y,
 - camera and tracker frames per second, the face model in use, processing time and the time from camera frame to joystick values.
@@ -187,7 +195,7 @@ The same data is available as JSON at `/state`; `POST /centre` does what the but
 
 ![Adjust page](docs/images/adjust.jpg)
 
-How head movements become joystick movements. Every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the blue line is the current setting, the grey band the dead zone, and the red dot shows where your head is now and what the joystick sends. Move a slider and the line changes at once.
+How head movements become joystick movements. Every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the line is the current setting, the grey band the dead zone, and the dot on it shows where your head is now and what the joystick sends. Each graph has its range slider right below it; move a slider and the line changes at once. Below the graphs is the **Centre** button, as on the Status and Config pages.
 
 | Setting | Meaning |
 |---|---|
@@ -204,7 +212,7 @@ How head movements become joystick movements. Every change is used right away; n
 
 ![Config page with the live camera picture and the face found by the tracker](docs/images/config.jpg)
 
-Setting up the camera, the face model and the connections. At the top are the tracker state and the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture is the Centre button. The picture is also available on its own at `/image`.
+Setting up the camera, the face model and the connections. At the top is the live camera picture, updated about ten times per second. Use it to aim the camera at your head. A green box shows where the tracker finds the face; with the YuNet face model, five red points mark the eyes, nose tip and mouth corners. Below the picture is the Centre button. The picture is also available on its own at `/image`.
 
 **Face detection:** used right away, and you see the effect in the picture.
 
@@ -263,7 +271,7 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 
 ## Head tracking
 
-- **Centre position:** after the start, and when you press **Centre** on the Status or Config page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
+- **Centre position:** after the start, and when you press **Centre** on the Status, Adjust or Config page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
 - **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because with YuNet the five face points show a nod less clearly than a turn, so nods measure smaller than they are. NeuralNet measures nods at their real size; there about 20° for both is a good start. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Adjust page and are used right away.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.
@@ -341,3 +349,12 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [taocpp/PEGTL](https://github.com/taocpp/PEGTL) | Parser, used by json | `54a2e32` (main, 2025-05-18) |
 | [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT licence) | Runs the NeuralNet face model. The ready-built release package for 64-bit ARM Linux, downloaded from the release page (there is no fork for release packages). | release 1.32.0 |
+
+The web pages load these in the browser, from the internet:
+
+| Library | Used for | Version |
+|---|---|---|
+| [BeerCSS](https://www.beercss.com) (MIT licence) | Material Design 3 components and Material Symbols icons | 3.12.13 (cdn.jsdelivr.net) |
+| [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) (SIL Open Font License) | Number readouts | Google Fonts |
+
+The colour scheme in `static/colors.css` was made once with Google's [material-color-utilities](https://github.com/material-foundation/material-color-utilities) 0.3.0; the pages do not load it.

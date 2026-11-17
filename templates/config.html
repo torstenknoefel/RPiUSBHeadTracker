@@ -40,15 +40,16 @@
         .camera-size > .field { flex: 1 1 140px; margin-top: 0 !important; }
         .camera-size { margin-top: 16px; }
         fieldset { margin-top: 16px; }
+        /* Centre button in the middle under the picture */
+        .camera-actions { max-width: 640px; justify-content: center; }
     </style>
     <main class="responsive">
         {{> statusbar.html}}
-        {{> trackstate.html}}
         <div class="camera-box">
             <img src="/image" class="round" alt="Camera" id="camera">
             <svg id="overlay" viewBox="0 0 640 480" preserveAspectRatio="none"></svg>
         </div>
-        <nav>
+        <nav class="camera-actions">
             <button id="centre" title="Look straight at the screen, then press">
                 <i>center_focus_strong</i>
                 <span>Centre</span>
