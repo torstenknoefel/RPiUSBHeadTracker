@@ -195,7 +195,7 @@ The same data is available as JSON at `/state`; `POST /centre` does what the but
 
 ![Adjust page](docs/images/adjust.jpg)
 
-How head movements become joystick movements. Every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the line is the current setting, the grey band the dead zone, and the dot on it shows where your head is now and what the joystick sends. Move a slider and the line changes at once.
+How head movements become joystick movements. Every change is used right away; nothing restarts and the centre position stays. Two graphs show how head turn (left/right) and head tilt (up/down) become joystick values: the line is the current setting, the grey band the dead zone, and the dot on it shows where your head is now and what the joystick sends. Each graph has its range slider right below it; move a slider and the line changes at once. Below the graphs is the **Centre** button, as on the Status and Config pages.
 
 | Setting | Meaning |
 |---|---|
@@ -271,7 +271,7 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 
 ## Head tracking
 
-- **Centre position:** after the start, and when you press **Centre** on the Status or Config page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
+- **Centre position:** after the start, and when you press **Centre** on the Status, Adjust or Config page, the program averages the head position over the next 15 frames with a face and uses it as "straight ahead". The log shows `Head tracker: centre set …`.
 - **Range:** by default 20° of head turn or 10° of head tilt gives full joystick deflection. Tilt has the smaller range because with YuNet the five face points show a nod less clearly than a turn, so nods measure smaller than they are. NeuralNet measures nods at their real size; there about 20° for both is a good start. Small movements within 1.5° of the centre give 0 (dead zone), so the view stays still when you hold your head still. Both can be changed on the Adjust page and are used right away.
 - **Smoothing:** a "1€ filter" smooths strongly while the head is still (no jitter) and hardly at all during fast movements (little lag).
 - **Face lost:** the joystick holds its last values for 0.5 s, then returns to the centre within 1 s.

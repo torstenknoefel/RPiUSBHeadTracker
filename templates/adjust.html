@@ -11,8 +11,11 @@
            (BeerCSS leaves 2rem below every field; the help text needs more) */
         .field:has(> .helper) { margin-bottom: 3.25rem; }
 
-        .graphs { display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 16px 0; }
+        .graphs { display: flex; flex-wrap: wrap; gap: 16px 32px; margin: 8px 0 0 0; }
         .graph { flex: 1 1 260px; max-width: 360px; }
+        .graph .setting { margin-top: 12px; }
+        /* Centre button in the middle under the two graphs */
+        .graph-actions { max-width: 752px; justify-content: center; margin: 0 0 24px 0; }
         .graph svg { width: 100%; height: auto; display: block; }
         .graph h6 { margin: 0 0 4px 0; font-size: 1rem; }
         .graph .axis { stroke: var(--outline); stroke-width: 1; }
@@ -40,27 +43,35 @@
                 <legend>Head tracking</legend>
                 <p class="live-note small-text"><i class="small">bolt</i>Changes are used right away. Move your head and watch the dot on the line.</p>
 
+                <!-- Each graph with its range right below it: side by side on wide
+                     screens, one after the other on narrow ones -->
                 <div class="graphs">
                     <div class="graph">
                         <h6>Left / right</h6>
                         <svg id="graph_x" viewBox="0 0 300 170" aria-label="Head turn to joystick X"></svg>
+                        <div class="setting">
+                            <div class="head"><label class="readout-label" for="track_range_x">Range left/right</label><span class="value readout" id="track_range_x_v"></span></div>
+                            <input type="range" id="track_range_x" name="track_range_x" min="2" max="60" step="0.5" value="{{track_range_x}}" />
+                            <div class="help">Head turn for full joystick deflection. Smaller = more sensitive.</div>
+                        </div>
                     </div>
                     <div class="graph">
                         <h6>Up / down</h6>
                         <svg id="graph_y" viewBox="0 0 300 170" aria-label="Head tilt to joystick Y"></svg>
+                        <div class="setting">
+                            <div class="head"><label class="readout-label" for="track_range_y">Range up/down</label><span class="value readout" id="track_range_y_v"></span></div>
+                            <input type="range" id="track_range_y" name="track_range_y" min="2" max="60" step="0.5" value="{{track_range_y}}" />
+                            <div class="help">Head tilt for full joystick deflection. With YuNet nods measure smaller than turns, so this is usually lower; with NeuralNet about the same as left/right.</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="setting">
-                    <div class="head"><label class="readout-label" for="track_range_x">Range left/right</label><span class="value readout" id="track_range_x_v"></span></div>
-                    <input type="range" id="track_range_x" name="track_range_x" min="2" max="60" step="0.5" value="{{track_range_x}}" />
-                    <div class="help">Head turn for full joystick deflection. Smaller = more sensitive.</div>
-                </div>
-                <div class="setting">
-                    <div class="head"><label class="readout-label" for="track_range_y">Range up/down</label><span class="value readout" id="track_range_y_v"></span></div>
-                    <input type="range" id="track_range_y" name="track_range_y" min="2" max="60" step="0.5" value="{{track_range_y}}" />
-                    <div class="help">Head tilt for full joystick deflection. With YuNet nods measure smaller than turns, so this is usually lower; with NeuralNet about the same as left/right.</div>
-                </div>
+                <nav class="graph-actions">
+                    <button type="button" id="centre" title="Look straight at the screen, then press">
+                        <i>center_focus_strong</i>
+                        <span>Centre</span>
+                    </button>
+                </nav>
                 <div class="setting">
                     <div class="head"><label class="readout-label" for="track_deadzone">Dead zone</label><span class="value readout" id="track_deadzone_v"></span></div>
                     <input type="range" id="track_deadzone" name="track_deadzone" min="0" max="10" step="0.1" value="{{track_deadzone}}" />
@@ -194,6 +205,10 @@
             el(id).addEventListener("input", () => { showValues(); sendSoon(); });
         for (const id of ["track_invert_x", "track_invert_y"])
             el(id).addEventListener("change", () => { showValues(); send(); });
+
+        el("centre").addEventListener("click", async () => {
+            await fetch("/centre", { method: "POST" });
+        });
 
         el("defaults").addEventListener("click", () => {
             for (const id of sliders) el(id).value = defaults[id];
