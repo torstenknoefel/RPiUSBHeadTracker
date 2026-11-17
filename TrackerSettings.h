@@ -7,8 +7,15 @@
 
 // Settings of the head tracker. All of them can change while the tracker runs
 // (HeadTracker::update_settings), without restarting the camera.
+enum class FaceModel
+{
+  YuNet,     // face detector with five points; angles from the points (HeadPose.h)
+  NeuralNet  // angles straight from a neural network (NeuralPose.h)
+};
+
 struct TrackerSettings
 {
+  FaceModel model = FaceModel::YuNet;
   cv::Size detect_size{ 256, 192 }; // frames are shrunk to this size for YuNet
   float min_score = 0.6f;           // YuNet confidence for a face
   int centre_frames = 15;           // frames averaged for the centre position

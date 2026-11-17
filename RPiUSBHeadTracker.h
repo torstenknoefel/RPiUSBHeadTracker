@@ -13,7 +13,7 @@
 
 // Face model for the head tracker, downloaded by CMake into the build folder.
 // Like the web pages it is loaded relative to the folder the program runs in.
-#define FACE_MODEL_PATH "models/face_detection_yunet_2022mar.onnx"
+#define MODEL_DIR "models"  // face model files, relative to the build folder
 
 class RPiUSBHeadTracker
 {

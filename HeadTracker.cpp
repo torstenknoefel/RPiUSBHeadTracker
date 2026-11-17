@@ -11,9 +11,15 @@ static double ms_since(clock_type::time_point t)
   return std::chrono::duration<double, std::milli>(clock_type::now() - t).count();
 }
 
-HeadTracker::HeadTracker(RPiHTCam& cam, const std::string& model_path, TrackerSettings settings)
-  : cam_(cam), settings_(settings)
+static const char* model_name(FaceModel m)
 {
+  return m == FaceModel::NeuralNet ? "NeuralNet" : "YuNet";
+}
+
+HeadTracker::HeadTracker(RPiHTCam& cam, const std::string& model_dir, TrackerSettings settings)
+  : cam_(cam), model_dir_(model_dir), settings_(settings)
+{
+  const std::string model_path = model_dir + "/face_detection_yunet_2022mar.onnx";
   try {
     detector_ = cv::FaceDetectorYN::create(model_path, "", settings_.detect_size, settings_.min_score, 0.3f, 5);
   }
@@ -93,34 +99,25 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
     pitch_filter_.set_parameters(settings_.filter_min_cutoff, settings_.filter_beta);
   }
 
-  // 1. Find the face on a small copy of the frame
-  cv::Mat small, faces;
-  cv::resize(frame, small, settings_.detect_size, 0, 0, cv::INTER_AREA);
-  detector_->detect(small, faces);
-
-  // Best face, leaving out boxes no real face has (see plausible_face_box)
-  const double sx = double(frame.cols) / small.cols, sy = double(frame.rows) / small.rows;
-  int best = -1;
-  for (int r = 0; r < faces.rows; ++r) {
-    const cv::Rect2f b(float(faces.at<float>(r, 0) * sx), float(faces.at<float>(r, 1) * sy),
-                       float(faces.at<float>(r, 2) * sx), float(faces.at<float>(r, 3) * sy));
-    if (!plausible_face_box(b, frame.size()))
-      continue;
-    if (best < 0 || faces.at<float>(r, 14) > faces.at<float>(best, 14))
-      best = r;
+  // Other face model: its angles have a different centre, so set the centre afresh
+  const FaceModel model = usable_model();
+  if (model != used_) {
+    used_ = model;
+    recentre_ = true;
+    if (neural_)
+      neural_->reset();
+    std::cout << "Head tracker: face model " << model_name(model) << std::endl;
   }
 
-  // 2. Head angles from the five points, in full-frame pixels
+  // 1.+2. Find the face and work out the head angles (full-frame pixels)
   HeadPose pose;
   FacePoints pts{};
+  bool has_points = false;
   cv::Rect2f box;
-  if (best >= 0) {
-    for (int k = 0; k < 5; ++k)
-      pts[k] = { faces.at<float>(best, 4 + 2 * k) * sx, faces.at<float>(best, 5 + 2 * k) * sy };
-    box = { float(faces.at<float>(best, 0) * sx), float(faces.at<float>(best, 1) * sy),
-            float(faces.at<float>(best, 2) * sx), float(faces.at<float>(best, 3) * sy) };
-    pose = solve_head_pose(pts, frame.size());
-  }
+  if (model == FaceModel::NeuralNet)
+    pose = detect_neural(frame, box);
+  else
+    pose = detect_yunet(frame, box, pts, has_points);
 
   ++fps_count_;
   const std::chrono::duration<double> fps_elapsed = started - fps_start_;
@@ -192,9 +189,71 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
     state_.processing_ms = ms_since(started);
     state_.latency_ms = ms_since(captured);
     state_.fps = fps_;
+    state_.model = model_name(model);
     state_.frame_size = frame.size();
     state_.box = box;
+    state_.has_points = has_points;
     state_.points = pts;
   }
   updated_.notify_all();
+}
+
+FaceModel HeadTracker::usable_model()
+{
+  if (settings_.model != FaceModel::NeuralNet || neural_failed_)
+    return FaceModel::YuNet;
+  if (!neural_) {
+    // Loading takes a moment; the frames meanwhile wait in the camera thread
+    neural_ = std::make_unique<NeuralPose>(model_dir_);
+    if (!neural_->ok()) {
+      neural_failed_ = true;
+      neural_.reset();
+      std::cerr << "Head tracker: NeuralNet not available, using YuNet" << std::endl;
+      return FaceModel::YuNet;
+    }
+  }
+  return FaceModel::NeuralNet;
+}
+
+HeadPose HeadTracker::detect_neural(const cv::Mat& frame, cv::Rect2f& box)
+{
+  HeadPose pose;
+  const NeuralFace face = neural_->process(frame);
+  if (face.ok) {
+    pose.ok = true;
+    pose.yaw = face.yaw;
+    pose.pitch = face.pitch;
+    box = face.box;
+  }
+  return pose;
+}
+
+HeadPose HeadTracker::detect_yunet(const cv::Mat& frame, cv::Rect2f& box, FacePoints& pts, bool& has_points)
+{
+  // Find the face on a small copy of the frame
+  cv::Mat small, faces;
+  cv::resize(frame, small, settings_.detect_size, 0, 0, cv::INTER_AREA);
+  detector_->detect(small, faces);
+
+  // Best face, leaving out boxes no real face has (see plausible_face_box)
+  const double sx = double(frame.cols) / small.cols, sy = double(frame.rows) / small.rows;
+  int best = -1;
+  for (int r = 0; r < faces.rows; ++r) {
+    const cv::Rect2f b(float(faces.at<float>(r, 0) * sx), float(faces.at<float>(r, 1) * sy),
+                       float(faces.at<float>(r, 2) * sx), float(faces.at<float>(r, 3) * sy));
+    if (!plausible_face_box(b, frame.size()))
+      continue;
+    if (best < 0 || faces.at<float>(r, 14) > faces.at<float>(best, 14))
+      best = r;
+  }
+  if (best < 0)
+    return {};
+
+  // Head angles from the five points, in full-frame pixels
+  for (int k = 0; k < 5; ++k)
+    pts[k] = { faces.at<float>(best, 4 + 2 * k) * sx, faces.at<float>(best, 5 + 2 * k) * sy };
+  box = { float(faces.at<float>(best, 0) * sx), float(faces.at<float>(best, 1) * sy),
+          float(faces.at<float>(best, 2) * sx), float(faces.at<float>(best, 3) * sy) };
+  has_points = true;
+  return solve_head_pose(pts, frame.size());
 }
