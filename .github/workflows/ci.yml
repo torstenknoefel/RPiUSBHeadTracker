@@ -1,0 +1,60 @@
+# Builds the program and runs the unit tests on every pull request and on
+# every push to master, for both 64-bit Raspberry Pi OS versions:
+#   bookworm (Debian 12) and trixie (Debian 13)
+# It runs on GitHub's 64-bit ARM machines (free for public repositories), in a
+# plain Debian container with the Raspberry Pi package source added for
+# libcamera - like Raspberry Pi OS Lite. Camera, USB joystick and Wi-Fi cannot
+# be tested here; that stays on a real Pi.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# A newer push to the same branch or PR cancels the run that is still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ubuntu-24.04-arm
+    container: debian:${{ matrix.os }}
+    strategy:
+      fail-fast: false  # one OS failing still shows the other's result
+      matrix:
+        os: [bookworm, trixie]
+    steps:
+      - name: Add the Raspberry Pi package source
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key \
+            | gpg --dearmor -o /usr/share/keyrings/raspberrypi-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian/ ${{ matrix.os }} main" \
+            > /etc/apt/sources.list.d/raspi.list
+          apt-get update
+
+      - name: Install build tools and libraries
+        # libssl-dev only until the "no OpenSSL" change is on master
+        run: |
+          apt-get install -y --no-install-recommends \
+            git cmake ninja-build g++ pkg-config \
+            libopencv-dev libcamera-dev libasio-dev libgtest-dev libssl-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
