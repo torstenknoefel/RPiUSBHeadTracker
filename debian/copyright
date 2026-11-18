@@ -44,6 +44,12 @@ Copyright: Google LLC
 License: Apache-2.0
  On Debian systems, the full text is in /usr/share/common-licenses/Apache-2.0.
 
+Files: usr/share/rpi-headtracker/static/logo.svg
+Copyright: Google LLC (the helmet: Material Symbols "sports_motorsports")
+           2026 Torsten Knoefel (background, double arrow, colours)
+License: Apache-2.0
+ On Debian systems, the full text is in /usr/share/common-licenses/Apache-2.0.
+
 Files: usr/share/rpi-headtracker/static/vendor/barlow-condensed-*.woff2
 Copyright: 2017 The Barlow Project Authors
 License: OFL-1.1
