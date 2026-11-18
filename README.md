@@ -261,15 +261,15 @@ Setting up the camera, the face model and the connections. At the top is the liv
 
 The Camera part and the joystick and web server part of the Config page have the same three buttons. Each sends only the values of its own part:
 
-- **Undo edits** puts the fields back to the values the page showed when it was loaded.
-- **Try these** restarts camera, web server and joystick with the new values on trial: press **Keep** in the status bar within 30 seconds, or the last working settings come back. Kept values are not saved yet; the status bar shows that.
+- **Undo** puts the fields back to the values the page showed when it was loaded.
+- **Try** restarts camera, web server and joystick with the new values on trial: press **Keep** in the status bar within 30 seconds, or the last working settings come back. Kept values are not saved yet; the status bar shows that.
 - **Save** writes all values to the config file; these ones are used after the next restart.
 
 The explanations in these parts are about the buttons; the status bar at the top says what state the settings are in right now.
 
 A wrong camera size, port or joystick device could make the program unusable or the web page unreachable. So these settings are only tried at first:
 
-1. **Try these** remembers the settings the program runs with now (the last working ones) in `<config file>.trial`, for example `/etc/USBHT.json.trial`, and restarts with the new ones.
+1. **Try** remembers the settings the program runs with now (the last working ones) in `<config file>.trial`, for example `/etc/USBHT.json.trial`, and restarts with the new ones.
 2. The program checks that the web server answers on its port, the joystick device opens and the camera delivers a picture. If one of these fails, it goes back to the last working settings right away.
 3. Otherwise the status bar counts down 30 seconds. **Keep** keeps the new settings; **Go back** or doing nothing brings back the last working settings.
 4. If the program stops during the trial (crash, power off), it starts the next time with the last working settings. With the service from step 7, systemd starts it again right after a crash.
