@@ -21,5 +21,7 @@ TEST(YuNetModel, LoadsAndRunsWithThisOpenCV)
 
   cv::Mat image(size, CV_8UC3, cv::Scalar(90, 110, 130)), faces;
   ASSERT_NO_THROW(detector->detect(image, faces)) << "OpenCV " << CV_VERSION << " cannot run " << yunet_model_file;
-  EXPECT_EQ(faces.rows, 0); // nothing to find on a plain picture
+  // Box, five points and score per face. (Plain pictures can give a "face":
+  // the tracker leaves those out with plausible_face_box.)
+  EXPECT_TRUE(faces.empty() || faces.cols == 15) << faces.cols << " columns";
 }

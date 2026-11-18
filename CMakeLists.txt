@@ -58,7 +58,7 @@ FetchContent_Declare(crow
 set(CROW_INSTALL OFF CACHE BOOL "" FORCE)
 
 # LCCV camera library, built as a static library and linked into the program.
-# cmake/patch_lccv.cmake adds the control names libcamera 0.8 (trixie) renamed.
+# cmake/patch_lccv.cmake makes it build against libcamera 0.5 (bookworm) and 0.8 (trixie).
 FetchContent_Declare(lccv
   URL      https://github.com/torstenknoefel/LCCV/archive/d246763350f6e9eff2fca38135f68d58e0eb0445.tar.gz
            https://github.com/kbarni/LCCV/archive/d246763350f6e9eff2fca38135f68d58e0eb0445.tar.gz
