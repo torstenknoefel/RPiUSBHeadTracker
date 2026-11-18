@@ -315,7 +315,7 @@ On Linux, `jstest /dev/input/js0` (package `joystick`) shows the same.
 - **Speed (YuNet):** on a Pi 4 at 256 × 192 processing takes about 20 ms per frame, so the tracker keeps up with the camera at 30 frames per second. At 160 × 120 it takes about 9 ms, enough for 60 frames per second.
 - **Log:** every 10 s the program writes a line like `Camera: 30.0 frames/s | Tracker: 30.0 frames/s, face 100%, processing 20.5 ms, latency 21.0 ms …`.
 
-The YuNet face model (2022 version, MIT licence) comes from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo). CMake downloads it at configure time and checks it against its SHA256. The newer 2023 version of the model needs OpenCV 4.8; Debian bookworm has 4.6.
+The YuNet face model (MIT licence) comes from the [OpenCV model zoo](https://github.com/opencv/opencv_zoo). CMake downloads it at configure time and checks it against its SHA256. Which version depends on OpenCV: up to 4.7 (bookworm has 4.6) only the 2022 model works, from 4.8 (trixie has 4.10) only the 2023 one; CMake downloads and the program loads the one that fits.
 
 ### NeuralNet face model
 
@@ -328,7 +328,7 @@ NeuralNet uses the neural networks of the [opentrack](https://github.com/opentra
 
 ## Unit tests
 
-The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values, the trial of new settings, the config file path and the NeuralNet helpers (angles from the network's rotation, brightness, uncertainty). They are built automatically when `libgtest-dev` is installed:
+The parts that need no camera, web server or USB connection have GoogleTest unit tests: the form parser, the config file, the joystick reports, the head angles, the smoothing filter, the conversion to joystick values, the trial of new settings, the config file path, the YuNet model file (it must fit the OpenCV version) and the NeuralNet helpers (angles from the network's rotation, brightness, uncertainty). They are built automatically when `libgtest-dev` is installed:
 
 ```bash
 ninja -C build
@@ -337,7 +337,7 @@ ctest --test-dir build
 
 To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 
-GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these tests for every pull request and every change on `master`, on 64-bit ARM for Raspberry Pi OS bookworm (Debian with the Raspberry Pi package source; trixie follows once the camera library LCCV builds against its newer libcamera). Camera, USB joystick and Wi-Fi are only tested on a real Pi.
+GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these tests for every pull request and every change on `master`, on 64-bit ARM for Raspberry Pi OS bookworm and trixie (Debian with the Raspberry Pi package source). Camera, USB joystick and Wi-Fi are only tested on a real Pi.
 
 ## Troubleshooting
 
@@ -388,7 +388,7 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [taocpp/config](https://github.com/taocpp/config) | Reading the config file | `93a455e` (main, 2024-04-13) |
 | [taocpp/json](https://github.com/taocpp/json) | JSON, used by config | `11a31e1` (main, 2025-03-11) |
 | [taocpp/PEGTL](https://github.com/taocpp/PEGTL) | Parser, used by json | `54a2e32` (main, 2025-05-18) |
-| [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
+| [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `d246763` (main, 2026-10-28), with a small patch at download time (`cmake/patch_lccv.cmake`) for the control names libcamera 0.8 (trixie) renamed |
 | [ONNX Runtime](https://onnxruntime.ai) (MIT licence) | Runs the NeuralNet face model. Ready-built for 64-bit ARM Linux, from Microsoft's NuGet package [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) (184 MB, all platforms; only the Linux ARM library is used). Its GitHub repository disappeared on 2026-11-18; the library in the NuGet package is byte for byte the one from the former GitHub release. | 1.32.0 |
 
 The web pages use these. CMake downloads them from the npm registry (pinned, checked by SHA256) into `<build dir>/static/vendor`, and the Pi serves them itself: on the tracker's own Wi-Fi the phone has no internet, so the pages load nothing from the internet.
