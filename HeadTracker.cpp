@@ -1,4 +1,5 @@
 #include "HeadTracker.h"
+#include "YuNetModel.h"
 
 #include <iostream>
 
@@ -19,7 +20,7 @@ static const char* model_name(FaceModel m)
 HeadTracker::HeadTracker(RPiHTCam& cam, const std::string& model_dir, TrackerSettings settings)
   : cam_(cam), model_dir_(model_dir), settings_(settings)
 {
-  const std::string model_path = model_dir + "/face_detection_yunet_2022mar.onnx";
+  const std::string model_path = model_dir + "/" + yunet_model_file;
   try {
     detector_ = cv::FaceDetectorYN::create(model_path, "", settings_.detect_size, settings_.min_score, 0.3f, 5);
   }

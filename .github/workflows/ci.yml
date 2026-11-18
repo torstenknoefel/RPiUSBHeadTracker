@@ -1,8 +1,6 @@
 # Builds the program and runs the unit tests on every pull request and on
-# every push to master, for 64-bit Raspberry Pi OS bookworm (Debian 12).
-# Trixie (Debian 13) is not in the list yet: its libcamera (0.8) needs C++20
-# and renamed controls, and the pinned LCCV does not compile against it
-# (LCCV upstream has a C++20 update since 2026-10; taking it in is its own task).
+# every push to master, for 64-bit Raspberry Pi OS bookworm (Debian 12) and
+# trixie (Debian 13).
 # It runs on GitHub's 64-bit ARM machines (free for public repositories), in a
 # plain Debian container with the Raspberry Pi package source added for
 # libcamera - like Raspberry Pi OS Lite. Camera, USB joystick and Wi-Fi cannot
@@ -31,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false  # one OS failing still shows the other's result
       matrix:
-        os: [bookworm]  # add trixie once LCCV builds against libcamera 0.8
+        os: [bookworm, trixie]
     steps:
       - name: Add the Raspberry Pi package source
         # The key comes from Raspberry Pi's keyring package (pinned by SHA256):
@@ -76,7 +74,7 @@ jobs:
           find . -type f -o -type l | sort
           test -f share/rpi-headtracker/templates/status.html
           test -f share/rpi-headtracker/static/vendor/beer.min.css
-          test -f share/rpi-headtracker/models/face_detection_yunet_2022mar.onnx
+          ls share/rpi-headtracker/models/face_detection_yunet_202*.onnx  # 2022 or 2023 model, by OpenCV version
           # the program must find the private ONNX Runtime next to it, not in the build folder
           ldd bin/RPiUSBHeadTracker | grep -F "$RUNNER_TEMP/stage/bin/../lib/rpi-headtracker/libonnxruntime.so.1"
           ! ldd bin/RPiUSBHeadTracker | grep "not found"

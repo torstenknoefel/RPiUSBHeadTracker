@@ -12,6 +12,7 @@ add_executable(rpiht_tests
   test_Trial.cpp
   test_NeuralPoseMath.cpp
   test_WifiSetup.cpp
+  test_YuNetModel.cpp
   ${PROJECT_SOURCE_DIR}/Command.cpp
   ${PROJECT_SOURCE_DIR}/WifiSetup.cpp
   ${PROJECT_SOURCE_DIR}/QueryParser.cpp
@@ -27,6 +28,7 @@ add_executable(rpiht_tests
 set_property(TARGET rpiht_tests PROPERTY CXX_STANDARD 20)
 target_include_directories(rpiht_tests PRIVATE ${PROJECT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(rpiht_tests PRIVATE GTest::gtest_main taocpp::config ${OpenCV_LIBS})
+target_compile_definitions(rpiht_tests PRIVATE RPIHT_MODEL_DIR="${PROJECT_BINARY_DIR}/models")
 
 include(GoogleTest)
 gtest_discover_tests(rpiht_tests)

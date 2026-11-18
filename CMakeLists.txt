@@ -58,14 +58,17 @@ FetchContent_Declare(crow
 set(CROW_INSTALL OFF CACHE BOOL "" FORCE)
 
 # LCCV camera library, built as a static library and linked into the program.
+# cmake/patch_lccv.cmake makes it build against libcamera 0.5 (bookworm) and 0.8 (trixie).
 FetchContent_Declare(lccv
-  URL      https://github.com/torstenknoefel/LCCV/archive/bca9b3d30cf7e9ff9958c6fbb427b0a8c11a38f2.tar.gz
-           https://github.com/kbarni/LCCV/archive/bca9b3d30cf7e9ff9958c6fbb427b0a8c11a38f2.tar.gz
-  URL_HASH SHA256=d36c5344679ec8b549c510b37ce684669d7683abedef066d91d72b1f8d6e2d53
+  URL      https://github.com/torstenknoefel/LCCV/archive/d246763350f6e9eff2fca38135f68d58e0eb0445.tar.gz
+           https://github.com/kbarni/LCCV/archive/d246763350f6e9eff2fca38135f68d58e0eb0445.tar.gz
+  URL_HASH SHA256=6d5c72fa8e4185aedc914a9479e7021e23b58c1cae963f18e60541b49df8d7ab
+  PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_lccv.cmake
 )
 # LCCV declares option(BUILD_SHARED_LIBS ON); with CMP0077 NEW it keeps this value.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(BUILD_SHARED_LIBS OFF)
+set(BUILD_EXAMPLES OFF)  # LCCV's example programs
 
 FetchContent_MakeAvailable(pegtl taocpp-json taocpp-config crow lccv)
 
@@ -92,14 +95,25 @@ function(download_model name sha256 problem)
   message(WARNING "${name} missing - ${problem}")
 endfunction()
 
-# Face detection model for the head tracker: YuNet, 2022 version (the 2023
-# version needs OpenCV 4.8; Debian bookworm has 4.6). From the OpenCV model zoo
+# Face detection model for the head tracker: YuNet from the OpenCV model zoo
 # (MIT licence), stored with Git LFS, pinned to a commit and checked by SHA256.
-download_model(face_detection_yunet_2022mar.onnx
-  50ef07f702a31741ca46a4c0d947773b64143b9362780237bf0d427d6c79bab7
-  "the head tracker will not work"
-  https://media.githubusercontent.com/media/opencv/opencv_zoo/7e062e54cf5410c09b795ff71b4a255e58498c79/models/face_detection_yunet/face_detection_yunet_2022mar.onnx
-)
+# Which version depends on OpenCV: up to 4.7 (bookworm: 4.6) only reads the
+# 2022 model, 4.8 and newer (trixie: 4.10) only the 2023 one. HeadTracker.cpp
+# picks the same file by OpenCV version.
+find_package(OpenCV REQUIRED)
+if (OpenCV_VERSION VERSION_LESS 4.8)
+  download_model(face_detection_yunet_2022mar.onnx
+    50ef07f702a31741ca46a4c0d947773b64143b9362780237bf0d427d6c79bab7
+    "the head tracker will not work"
+    https://media.githubusercontent.com/media/opencv/opencv_zoo/7e062e54cf5410c09b795ff71b4a255e58498c79/models/face_detection_yunet/face_detection_yunet_2022mar.onnx
+  )
+else()
+  download_model(face_detection_yunet_2023mar.onnx
+    8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
+    "the head tracker will not work"
+    https://media.githubusercontent.com/media/opencv/opencv_zoo/f12e12798e8314f7c074a6656816c048dcc95b7a/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+  )
+endif()
 
 # Second face model, "NeuralNet": the head pose models of the opentrack NeuralNet
 # tracker (by Michael Welter, https://github.com/opentrack/opentrack, ISC licence),
@@ -175,7 +189,6 @@ file(COPY "${barlow_condensed_SOURCE_DIR}/files/barlow-condensed-latin-500-norma
      DESTINATION "${_vendor}")
 file(COPY_FILE "${barlow_condensed_SOURCE_DIR}/LICENSE" "${_vendor}/barlow-condensed-LICENSE.txt")
 
-find_package( OpenCV REQUIRED )
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/templates")
 add_custom_target(templates

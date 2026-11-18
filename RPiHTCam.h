@@ -43,7 +43,7 @@ public:
 private:
   void capture_loop();
 
-  lccv::PiCamera cam;
+  lccv::Camera cam;
   std::thread worker;
   std::atomic_bool running{ false };
   std::atomic<double> fps_{ 0.0 };
