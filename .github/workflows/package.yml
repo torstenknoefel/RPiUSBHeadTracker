@@ -87,8 +87,10 @@ jobs:
           test -f /usr/share/rpi-headtracker/default.json
           test -f /usr/lib/udev/rules.d/60-rpi-headtracker.rules
           ls /usr/lib/systemd/system/rpi-headtracker.service /usr/lib/systemd/system/rpi-headtracker-gadget.service
-          ! ldd /usr/bin/RPiUSBHeadTracker | grep "not found"
-          ldd /usr/bin/RPiUSBHeadTracker | grep -F "/usr/lib/rpi-headtracker/libonnxruntime.so.1"
+          # (a line starting with "!" would never stop the step, hence the if)
+          if ldd /usr/bin/RPiUSBHeadTracker | grep "not found"; then exit 1; fi
+          # found through the RPATH, so ldd shows /usr/bin/../lib/rpi-headtracker/
+          ldd /usr/bin/RPiUSBHeadTracker | grep -F "/usr/bin/../lib/rpi-headtracker/libonnxruntime.so.1"
           # starts and stops at the wrong data folder (no camera here)
           if /usr/bin/RPiUSBHeadTracker -d /nonexistent; then exit 1; fi
           apt-get purge -y rpi-headtracker
