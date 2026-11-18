@@ -1,0 +1,70 @@
+# Builds the program and runs the unit tests on every pull request and on
+# every push to master, for 64-bit Raspberry Pi OS bookworm (Debian 12).
+# Trixie (Debian 13) is not in the list yet: its libcamera (0.8) needs C++20
+# and renamed controls, and the pinned LCCV does not compile against it
+# (LCCV upstream has a C++20 update since 2026-10; taking it in is its own task).
+# It runs on GitHub's 64-bit ARM machines (free for public repositories), in a
+# plain Debian container with the Raspberry Pi package source added for
+# libcamera - like Raspberry Pi OS Lite. Camera, USB joystick and Wi-Fi cannot
+# be tested here; that stays on a real Pi.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# A newer push to the same branch or PR cancels the run that is still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ubuntu-24.04-arm
+    container: debian:${{ matrix.os }}
+    strategy:
+      fail-fast: false  # one OS failing still shows the other's result
+      matrix:
+        os: [bookworm]  # add trixie once LCCV builds against libcamera 0.8
+    steps:
+      - name: Add the Raspberry Pi package source
+        # The key comes from Raspberry Pi's keyring package (pinned by SHA256):
+        # its 2025 version has the key signed with SHA-256, which trixie needs
+        # (the older raspberrypi.gpg.key is signed with SHA-1, refused since 2026-02)
+        env:
+          KEYRING_DEB: raspberrypi-archive-keyring_2025.1+rpt1_all.deb
+          KEYRING_SHA256: 2e727149d7acb8cc7f604e66d0049161039c8aa1eaf1175e54f9e69d963d60e4
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl
+          curl -fsSL -o /tmp/keyring.deb \
+            "http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/$KEYRING_DEB"
+          echo "$KEYRING_SHA256  /tmp/keyring.deb" | sha256sum -c -
+          dpkg -i /tmp/keyring.deb
+          echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.pgp] http://archive.raspberrypi.com/debian/ ${{ matrix.os }} main" \
+            > /etc/apt/sources.list.d/raspi.list
+          apt-get update
+
+      - name: Install build tools and libraries
+        # libssl-dev only until the "no OpenSSL" change is on master
+        run: |
+          apt-get install -y --no-install-recommends \
+            git cmake ninja-build g++ pkg-config \
+            libopencv-dev libcamera-dev libasio-dev libgtest-dev libssl-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
