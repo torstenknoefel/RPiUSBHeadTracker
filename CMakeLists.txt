@@ -186,17 +186,47 @@ add_custom_target(staticfiles
 )
 add_dependencies( RPiUSBHeadTracker staticfiles)
 
-#find_package(Drogon CONFIG REQUIRED)
-#target_link_libraries(${PROJECT_NAME} PRIVATE "libdrogon.a" "libtrantor.a"  "libz.a" "libssl.a" "libcrypto.a" "libyaml-cpp.a" "jsoncpp" "cares" "brotlicommon" "brotlidec" "brotlienc" "uuid")
-target_link_libraries(${PROJECT_NAME} PRIVATE libssl.a ${OpenCV_LIBS} liblccv Crow::Crow taocpp::config)
+# No OpenSSL: the web server has no HTTPS (Crow without CROW_ENABLE_SSL)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS} liblccv Crow::Crow taocpp::config)
 target_compile_definitions(${PROJECT_NAME} PRIVATE RPIHT_VERSION="${PROJECT_VERSION}")
 if (RPIHT_HAVE_NEURALNET)
   target_compile_definitions(${PROJECT_NAME} PRIVATE RPIHT_HAVE_NEURALNET=1)
   target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime_prebuilt)
 endif()
 
-
-
+# Installing, for the Debian package:
+#   cmake --install <build dir> --component rpi-headtracker --prefix /usr
+# Only this component: the fetched libraries (PEGTL, LCCV) install their own
+# headers and files, which are not needed at run time.
+# The program then runs with -d <prefix>/share/rpi-headtracker:
+#   bin/RPiUSBHeadTracker
+#   share/rpi-headtracker/   templates, static (with vendor), models, default.json, wifi/
+#   lib/rpi-headtracker/     ONNX Runtime (private: found through the program's RPATH),
+#                            headtracker_device.sh, headtracker-wifi.sh
+# Not distribution-wide lib/<arch>: ONNX Runtime is the project's own copy.
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME rpi-headtracker)
+set(RPIHT_SHARE_DIR "${CMAKE_INSTALL_DATADIR}/rpi-headtracker")
+set(RPIHT_LIB_DIR "lib/rpi-headtracker")
+set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN/../${RPIHT_LIB_DIR}")
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(DIRECTORY templates/ DESTINATION "${RPIHT_SHARE_DIR}/templates"
+        FILES_MATCHING PATTERN "*.html" PATTERN "example_chat.html" EXCLUDE)
+install(FILES static/colors.css static/fonts.css static/logo.svg static/carbon-tile.png
+        DESTINATION "${RPIHT_SHARE_DIR}/static")
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static/vendor" DESTINATION "${RPIHT_SHARE_DIR}/static")
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models" DESTINATION "${RPIHT_SHARE_DIR}")
+install(FILES config/default.json DESTINATION "${RPIHT_SHARE_DIR}")
+install(FILES wifi/headtracker-captive.conf wifi/headtracker-wifi.rules.in DESTINATION "${RPIHT_SHARE_DIR}/wifi")
+install(PROGRAMS headtracker_device.sh wifi/headtracker-wifi.sh DESTINATION "${RPIHT_LIB_DIR}")
+if (RPIHT_HAVE_NEURALNET)
+  # The library, the name the program asks for (libonnxruntime.so.1, a link) and its licence texts
+  install(FILES "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.1.32.0" "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.1"
+          DESTINATION "${RPIHT_LIB_DIR}")
+  install(FILES "${onnxruntime_SOURCE_DIR}/LICENSE" DESTINATION "${RPIHT_SHARE_DIR}/licenses" RENAME onnxruntime-LICENSE.txt)
+  install(FILES "${onnxruntime_SOURCE_DIR}/ThirdPartyNotices.txt" DESTINATION "${RPIHT_SHARE_DIR}/licenses"
+          RENAME onnxruntime-ThirdPartyNotices.txt)
+endif()
 
 # Unit tests (GoogleTest; on the Pi: sudo apt install libgtest-dev). Run with: ctest --test-dir <build dir>
 option(RPIHT_BUILD_TESTS "Build the unit tests" ON)
@@ -209,5 +239,3 @@ if (RPIHT_BUILD_TESTS)
     message(STATUS "GoogleTest not found - unit tests are not built")
   endif()
 endif()
-
-# TODO: Add install targets if needed.

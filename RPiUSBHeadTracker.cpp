@@ -15,7 +15,9 @@ using namespace std;
 #include <math.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <csignal>
 #include <filesystem>
 #include <iostream>
@@ -133,8 +135,16 @@ int main(int argc, char** argv) {
   //parser.set_optional<double>("b", "beta", 11.0, "Also floating point values are possible.");
   //parser.set_optional<bool>("a", "all", false, "Boolean arguments are simply switched when encountered, i.e. false to true if provided.");
   //parser.set_required<std::vector<short>>("v", "values", "By using a vector it is possible to receive a multitude of inputs.");
+  parser.set_optional<std::string>("d", "datadir", "",
+    "Folder with the web pages (templates, static) and face models (models); default: the current folder");
   parser.run_and_exit_if_error();
-  auto configpath = parser.get<std::string>("c");
+  // Absolute, so it stays right after changing to the data folder
+  auto configpath = std::filesystem::absolute(parser.get<std::string>("c")).string();
+  const auto datadir = parser.get<std::string>("d");
+  if (!datadir.empty() && chdir(datadir.c_str()) != 0) {
+    fprintf(stderr, "Cannot use the data folder %s: %s\n", datadir.c_str(), strerror(errno));
+    return 1;
+  }
 
   RPiHTConfig config(configpath);
   printf("Current Configuration:\n\r");

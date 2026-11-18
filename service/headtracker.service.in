@@ -11,9 +11,9 @@ StartLimitBurst=5
 
 [Service]
 User=@USER@
-# The program loads the web pages and the face model relative to this folder
+# The program loads the web pages and the face models from its data folder (-d)
 WorkingDirectory=@BUILD@
-ExecStart=@BUILD@/RPiUSBHeadTracker -c @CONFIG@
+ExecStart=@BUILD@/RPiUSBHeadTracker -c @CONFIG@ -d @BUILD@
 # Only after a crash: Ctrl+C, pkill or systemctl stop end the program normally
 Restart=on-failure
 RestartSec=3

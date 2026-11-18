@@ -13,7 +13,7 @@
 
 // Face model for the head tracker, downloaded by CMake into the build folder.
 // Like the web pages it is loaded relative to the folder the program runs in.
-#define MODEL_DIR "models"  // face model files, relative to the build folder
+#define MODEL_DIR "models"  // face model files, relative to the data folder (-d, default: current folder)
 
 class RPiUSBHeadTracker
 {

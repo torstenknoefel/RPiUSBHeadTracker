@@ -1,0 +1,9 @@
+{
+   "device": "/dev/hidg0",
+   "ip": "0.0.0.0",
+   "port": 18080,
+   "cam_width": 640,
+   "cam_height": 480,
+   "cam_framerate": 30.0,
+   "cam_verbose": false
+}
