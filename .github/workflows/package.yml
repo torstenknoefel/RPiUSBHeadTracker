@@ -2,8 +2,9 @@
 # trixie, installs it in a fresh container and checks the result.
 #   - every pull request and push to master: the packages are kept as workflow
 #     artifacts (Actions tab -> run -> Artifacts) for 14 days
-#   - a version tag vX.Y.Z (must match project() VERSION in CMakeLists.txt):
-#     the packages are attached to a GitHub release of that tag
+#   - a version tag vX.Y.Z (must match project() VERSION in CMakeLists.txt): the
+#     SD card image is built too (also when started by hand), and packages and
+#     image are attached to a GitHub release of that tag
 # Package versions get the Debian release: 0.1.0+deb12 (bookworm), 0.1.0+deb13 (trixie).
 name: Package
 
@@ -120,10 +121,53 @@ jobs:
             rpi-headtracker-wifi_*_all.deb
           retention-days: 14
 
+  # The SD card image (image/build.sh): Raspberry Pi OS Lite trixie + the trixie
+  # packages from the job above. Takes a while, so only for version tags and when
+  # started by hand (Actions tab -> Package -> Run workflow, on any branch).
+  image:
+    name: SD card image (trixie)
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: deb
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: rpi-headtracker-trixie
+          path: debs
+
+      - name: Make room on the disk (pi-gen needs about 15 GB)
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune --all --force >/dev/null || true
+          df -h /
+
+      - name: Build the image with pi-gen
+        run: bash image/build.sh debs deploy
+
+      - name: Checksum
+        working-directory: deploy
+        run: |
+          sha256sum *.img.xz > SHA256SUMS
+          cat SHA256SUMS
+          ls -lh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: headtracker-image
+          path: |
+            deploy/*.img.xz
+            deploy/SHA256SUMS
+          retention-days: 7
+          compression-level: 0  # already xz
+
   release:
     name: Attach to the GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: deb
+    needs: [deb, image]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -138,14 +182,13 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          pattern: rpi-headtracker-*
-          merge-multiple: true
+          merge-multiple: true  # all artifacts: both package sets and the image
 
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ls -l *.deb
+          ls -l *.deb *.img.xz SHA256SUMS
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Debian packages for 64-bit Raspberry Pi OS: +deb12 for bookworm, +deb13 for trixie. rpi-headtracker is the head tracker; rpi-headtracker-wifi adds the Wi-Fi setup without a terminal (own hotspot when on no network)."
-          gh release upload "$GITHUB_REF_NAME" *.deb --clobber
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "SD card image (write it with Raspberry Pi Imager: Choose OS -> Use custom) and Debian packages for 64-bit Raspberry Pi OS: +deb12 for bookworm, +deb13 for trixie. rpi-headtracker is the head tracker; rpi-headtracker-wifi adds the Wi-Fi setup without a terminal (own hotspot when on no network)."
+          gh release upload "$GITHUB_REF_NAME" *.deb *.img.xz SHA256SUMS --clobber

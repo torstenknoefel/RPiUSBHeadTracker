@@ -1,0 +1,30 @@
+# pi-gen settings for the SD card image (see image/build.sh, which adds IMG_NAME).
+# Raspberry Pi OS Lite trixie 64-bit plus the stage "stage-headtracker".
+
+PI_GEN_RELEASE="RPi head tracker"
+RELEASE=trixie
+DEPLOY_COMPRESSION=xz
+COMPRESSION_LEVEL=6
+
+# Stage 2 is Raspberry Pi OS Lite; no desktop stages. Only our stage exports an
+# image (build.sh puts SKIP_IMAGES into stage2).
+STAGE_LIST="stage0 stage1 stage2 stage-headtracker"
+
+# The page is at http://headtracker.local
+TARGET_HOSTNAME=headtracker
+
+LOCALE_DEFAULT=en_GB.UTF-8
+KEYBOARD_KEYMAP=gb
+KEYBOARD_LAYOUT="English (UK)"
+TIMEZONE_DEFAULT=Europe/London
+
+# Wi-Fi is blocked on Raspberry Pi OS until a country is set. Raspberry Pi
+# Imager's customisation can set another one when writing the card.
+WPA_COUNTRY=GB
+
+# No login by default: user "pi" without a password is locked, SSH is off.
+# Raspberry Pi Imager's customisation (cloud-init) can add a user and switch on
+# SSH when writing the card. Normal users never need a login.
+FIRST_USER_NAME=pi
+ENABLE_SSH=0
+ENABLE_CLOUD_INIT=1

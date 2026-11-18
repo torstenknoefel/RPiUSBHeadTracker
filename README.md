@@ -31,6 +31,25 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 
 **Processing power:** YuNet takes about 20 ms per frame on a Pi 4; NeuralNet about 25 ms and keeps all four cores busy, so it is meant for a Pi 4 or 5 at up to 30 frames per second.
 
+## SD card image (easiest)
+
+The image is Raspberry Pi OS Lite (trixie, 64-bit) with the head tracker and its Wi-Fi setup already installed. No terminal needed:
+
+1. Download `…-headtracker-<version>.img.xz` from the [releases](https://github.com/torstenknoefel/RPiUSBHeadTracker/releases).
+2. Write it with [Raspberry Pi Imager](https://www.raspberrypi.com/software/): **Choose OS → Use custom** and pick the file. Imager may offer to customise it: you can enter your Wi-Fi there (then the tracker joins it right away) and change the Wi-Fi country (the image uses United Kingdom). User and SSH are only needed for development.
+3. Put the card into the Pi, connect the camera, and plug the Pi's USB‑C port into the PC. The first start takes a minute or two (the card is set up and restarts once).
+4. Without Wi-Fi from Imager, the Pi opens its own Wi-Fi **HeadTracker-XXXX**: join it with your phone and pick your network on the page that opens (see [Wi-Fi setup](#8-wi-fi-setup-without-a-terminal-optional)).
+5. Open **http://headtracker.local** on the PC (or `http://<address of the Pi>`). The PC also shows a new game controller "RaspberryPi Head Tracker".
+
+| The image has | |
+|---|---|
+| Name on the network | `headtracker` (page at `http://headtracker.local`, port 80; the program itself listens on 18080, which works too) |
+| Packages | `rpi-headtracker` and `rpi-headtracker-wifi` (see below) |
+| Wi-Fi country | United Kingdom (GB), changeable in Imager |
+| Login | none: user `pi` is locked and SSH is off, unless Imager's customisation sets up a user and SSH |
+
+The image is built by `image/build.sh` with [pi-gen](https://github.com/RPi-Distro/pi-gen) (the tool Raspberry Pi builds its own images with, pinned to the release 2026-10-06): stages 0–2 are Raspberry Pi OS Lite, `image/stage-headtracker` installs the packages and puts port 80 on all addresses. GitHub Actions builds it for every version tag (attached to the release) and when the Package workflow is started by hand (kept as an artifact for 7 days).
+
 ## Install the package
 
 On a 64-bit Raspberry Pi OS, the Debian package sets everything up: download `rpi-headtracker_<version>+deb12_arm64.deb` (bookworm) or `…+deb13_arm64.deb` (trixie) from the [releases](https://github.com/torstenknoefel/RPiUSBHeadTracker/releases) (packages of every pull request are under the [Package workflow's](https://github.com/torstenknoefel/RPiUSBHeadTracker/actions/workflows/package.yml) runs as artifacts), then:
@@ -428,7 +447,8 @@ GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these te
 | `templates/`, `static/` | Web pages and style sheets. |
 | `headtracker_device.sh` | Creates the USB joystick. |
 | `install_service.sh`, `service/` | Start at boot and after a crash (systemd). |
-| `debian/`, `.github/workflows/package.yml` | Debian package and the workflow that builds it. |
+| `debian/`, `.github/workflows/package.yml` | Debian packages and the workflow that builds them (and the image). |
+| `image/` | SD card image: pi-gen settings, the stage that adds the head tracker, `build.sh`. |
 | `.github/workflows/ci.yml` | Build and unit tests on GitHub Actions. |
 | `WifiSetup.*`, `Command.*` | Wi-Fi state, nearby networks, joining and forgetting (nmcli, without a shell). |
 | `install_wifi.sh`, `wifi/` | Hotspot when the Pi is on no Wi-Fi network, port 80 on the hotspot, the setup page's helpers (development setup; the package `rpi-headtracker-wifi` uses the same scripts). |
