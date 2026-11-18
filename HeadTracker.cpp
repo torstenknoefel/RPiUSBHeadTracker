@@ -1,6 +1,7 @@
 #include "HeadTracker.h"
 #include "YuNetModel.h"
 
+#include <algorithm>
 #include <iostream>
 
 #include <opencv2/imgproc.hpp>
@@ -95,6 +96,11 @@ void HeadTracker::process(const cv::Mat& frame, clock_type::time_point captured)
       detector_->setInputSize(new_settings_.detect_size);
     if (new_settings_.min_score != settings_.min_score)
       detector_->setScoreThreshold(new_settings_.min_score);
+    // Other number of cores for NeuralNet: load it again with them (when next used)
+    if (new_settings_.neural_threads != settings_.neural_threads && neural_) {
+      neural_.reset();
+      neural_failed_ = false;
+    }
     settings_ = new_settings_;
     yaw_filter_.set_parameters(settings_.filter_min_cutoff, settings_.filter_beta);
     pitch_filter_.set_parameters(settings_.filter_min_cutoff, settings_.filter_beta);
@@ -205,7 +211,10 @@ FaceModel HeadTracker::usable_model()
     return FaceModel::YuNet;
   if (!neural_) {
     // Loading takes a moment; the frames meanwhile wait in the camera thread
-    neural_ = std::make_unique<NeuralPose>(model_dir_);
+    const int cores = int(std::max(1u, std::thread::hardware_concurrency()));
+    const int threads = std::min(settings_.neural_threads, cores);
+    neural_ = std::make_unique<NeuralPose>(model_dir_, threads);
+    std::cout << "Head tracker: NeuralNet uses " << threads << " of " << cores << " processor cores" << std::endl;
     if (!neural_->ok()) {
       neural_failed_ = true;
       neural_.reset();

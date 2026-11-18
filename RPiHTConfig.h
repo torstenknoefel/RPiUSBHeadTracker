@@ -32,6 +32,8 @@ struct RPiHTConfigData
   int track_detect_width = 256;  // camera frames are shrunk to this width for face detection
                                  // (height keeps the camera's aspect): larger = steadier, slower
   std::string track_model = "yunet";  // face model: "yunet" or "neuralnet" (see NeuralPose.h)
+  int track_threads = 3;         // processor cores NeuralNet uses; one left free for camera and
+                                 // web server gives fewer slow frames (measured on a Pi 4)
 
   bool is_saved;   // the values are the ones in the config file
   bool is_active;  // the program runs with these values
@@ -53,7 +55,8 @@ struct RPiHTConfigData
       && track_deadzone == other.track_deadzone && track_curve == other.track_curve
       && track_smoothing == other.track_smoothing && track_speed == other.track_speed
       && track_invert_x == other.track_invert_x && track_invert_y == other.track_invert_y
-      && track_detect_width == other.track_detect_width && track_model == other.track_model;
+      && track_detect_width == other.track_detect_width && track_model == other.track_model
+      && track_threads == other.track_threads;
   }
   // Copies the head tracking values of 'other'
   void copy_tracking(const RPiHTConfigData& other)
@@ -68,6 +71,7 @@ struct RPiHTConfigData
     track_invert_y = other.track_invert_y;
     track_detect_width = other.track_detect_width;
     track_model = other.track_model;
+    track_threads = other.track_threads;
   }
 };
 

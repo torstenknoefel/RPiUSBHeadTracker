@@ -175,6 +175,7 @@ The program reads its settings from `/etc/USBHT.json`, or from the file given wi
 | `track_invert_x`, `track_invert_y` | `true` reverses the direction of X or Y. Optional, default `false`. |
 | `track_detect_width` | Width in pixels the camera picture is shrunk to for face detection with YuNet; the height keeps the camera's aspect ratio. Larger = steadier, above all up/down, but slower. Optional, default 256. |
 | `track_model` | Face model: `"yunet"` or `"neuralnet"` (see [Head tracking](#head-tracking)). Optional, default `"yunet"`. |
+| `track_threads` | Processor cores the NeuralNet face model uses. Optional, default 3. All four cores are a little faster on average but give more slow frames (on a Pi 4: 1.4 % of frames over 40 ms instead of 0.5 %), because the camera and the web server need a core too. Changed on the Config page, used right away. |
 
 `config/default.json` is a file to start from.
 

@@ -16,6 +16,7 @@ enum class FaceModel
 struct TrackerSettings
 {
   FaceModel model = FaceModel::YuNet;
+  int neural_threads = 3;           // processor cores for NeuralNet (more than the Pi has: all)
   cv::Size detect_size{ 256, 192 }; // frames are shrunk to this size for YuNet
   float min_score = 0.6f;           // YuNet confidence for a face
   int centre_frames = 15;           // frames averaged for the centre position

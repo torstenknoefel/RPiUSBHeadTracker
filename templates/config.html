@@ -82,6 +82,16 @@
                     <i>arrow_drop_down</i>
                     <span class="helper">Larger = steadier, above all up/down, but more processing time (see the Status page). Not used by NeuralNet.</span>
                 </div>
+                <div class="field border label" id="threads_field">
+                    <select id="track_threads" name="track_threads">
+                        {{#track_threads_options}}
+                        <option value="{{value}}" {{selected}}>{{text}}</option>
+                        {{/track_threads_options}}
+                    </select>
+                    <label>Processor cores (NeuralNet)</label>
+                    <i>arrow_drop_down</i>
+                    <span class="helper">All cores: a little faster on average, but more often a slow frame, because the camera and this web page need a core too. One core less: steadier. Not used by YuNet.</span>
+                </div>
             </fieldset>
         </form>
 
@@ -256,10 +266,11 @@
 
         // Face model and detection size: sent right away; the other head
         // tracking values (Adjust page) stay as they are
-        const selects = ["track_model", "track_detect_width"];
+        const selects = ["track_model", "track_detect_width", "track_threads"];
         function showDetect() {
-            // The detection size is a YuNet setting
+            // The detection size is a YuNet setting, the cores a NeuralNet one
             el("track_detect_width").disabled = el("track_model").value !== "yunet";
+            el("track_threads").disabled = el("track_model").value !== "neuralnet";
         }
         async function sendFace() {
             const body = new URLSearchParams();

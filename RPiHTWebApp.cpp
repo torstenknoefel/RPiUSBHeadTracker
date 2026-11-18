@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <iomanip>
 #include <mutex>
 #include <regex>
+#include <thread>
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -101,6 +103,26 @@ static crow::json::wvalue model_options(const RPiHTConfigData& data)
     o["text"] = c.text;
     o["selected"] = data.track_model == c.value ? "selected" : "";
     o["disabled"] = c.usable ? "" : "disabled";
+    list.push_back(std::move(o));
+  }
+  return crow::json::wvalue(list);
+}
+
+// Choices for the processor cores NeuralNet uses, as a list for the mustache
+// template: 1 up to the cores of this computer ("3 of 4 (default)")
+static crow::json::wvalue thread_options(const RPiHTConfigData& data)
+{
+  const int cores = int(std::max(1u, std::thread::hardware_concurrency()));
+  const int current = std::clamp(data.track_threads, 1, cores);
+  std::vector<crow::json::wvalue> list;
+  for (int n = 1; n <= cores; ++n) {
+    std::string text = std::to_string(n) + " of " + std::to_string(cores);
+    if (n == std::min(3, cores)) text += " (default)";
+    if (n == cores && cores > 1) text += " \xE2\x80\x93 fastest on average, more slow frames";
+    crow::json::wvalue o;
+    o["value"] = n;
+    o["text"] = text;
+    o["selected"] = n == current ? "selected" : "";
     list.push_back(std::move(o));
   }
   return crow::json::wvalue(list);
@@ -310,6 +332,7 @@ public:
           t.track_invert_x = form_bool(post, "track_invert_x", t.track_invert_x);
           t.track_invert_y = form_bool(post, "track_invert_y", t.track_invert_y);
           t.track_detect_width = int(form_number(post, "track_detect_width", t.track_detect_width));
+          t.track_threads = std::clamp(int(form_number(post, "track_threads", t.track_threads)), 1, 16);
           const std::string model = post.get("track_model");
           if (model == "yunet" || (model == "neuralnet" && NeuralPose::built_in()))
             t.track_model = model;
@@ -591,6 +614,7 @@ private:
                                 });
     ctx["track_detect_options"] = detect_options(data);
     ctx["track_model_options"] = model_options(data);
+    ctx["track_threads_options"] = thread_options(data);
     if (reload_config)
       ctx["restart_instance"] = instance_;  // the status bar shows the restart
     ctx["trial_url"] = trial_url;
