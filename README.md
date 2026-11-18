@@ -337,7 +337,7 @@ ctest --test-dir build
 
 To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 
-GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these tests for every pull request and every change on `master`, on 64-bit ARM for Raspberry Pi OS bookworm and trixie (Debian with the Raspberry Pi package source). Camera, USB joystick and Wi-Fi are only tested on a real Pi.
+GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these tests for every pull request and every change on `master`, on 64-bit ARM for Raspberry Pi OS bookworm (Debian with the Raspberry Pi package source; trixie follows once the camera library LCCV builds against its newer libcamera). Camera, USB joystick and Wi-Fi are only tested on a real Pi.
 
 ## Troubleshooting
 
