@@ -56,7 +56,7 @@ The restart is needed once, for the USB device mode. Then open `http://<name of 
 
 `journalctl -u rpi-headtracker -f` shows the program's messages. `sudo apt remove rpi-headtracker` removes the program and keeps the settings; `sudo apt purge rpi-headtracker` also removes the settings and the USB device mode line. A development setup from step 7 below (service `headtracker`) is stopped when the package's service starts; remove it with `sudo bash install_service.sh --remove`. The Wi-Fi setup (step 8) is not in the package yet.
 
-The package is built by GitHub Actions (`.github/workflows/package.yml`, files in `debian/`); on a version tag `vX.Y.Z` the packages are attached to that release. To build it on the Pi: `sudo apt install debhelper dpkg-dev`, then `dpkg-buildpackage -b -us -uc` in the source folder (needs internet: CMake downloads the libraries).
+The package is built by GitHub Actions (`.github/workflows/package.yml`, files in `debian/`); on a version tag `vX.Y.Z` the packages are attached to that release. To build it on the Pi: `sudo apt install build-essential debhelper dpkg-dev`, then `dpkg-buildpackage -b -us -uc` in the source folder (needs internet: CMake downloads the libraries).
 
 ## Setup on the Pi
 

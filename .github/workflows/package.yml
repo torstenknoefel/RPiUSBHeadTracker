@@ -54,7 +54,7 @@ jobs:
       - name: Install packaging tools and build dependencies
         run: |
           apt-get install -y --no-install-recommends \
-            dpkg-dev debhelper git \
+            build-essential dpkg-dev debhelper git \
             cmake ninja-build g++ pkg-config \
             libopencv-dev libcamera-dev libasio-dev libgtest-dev
 
