@@ -52,13 +52,13 @@ jobs:
           apt-get update
 
       - name: Install build tools and libraries
-        # libssl-dev only until the "no OpenSSL" change is on master
         run: |
           apt-get install -y --no-install-recommends \
             git cmake ninja-build g++ pkg-config \
-            libopencv-dev libcamera-dev libasio-dev libgtest-dev libssl-dev
+            libopencv-dev libcamera-dev libasio-dev libgtest-dev
 
-      - uses: actions/checkout@v4
+      # v7 runs on Node.js 24 (v4 used Node.js 20, which GitHub is retiring)
+      - uses: actions/checkout@v7
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -68,3 +68,15 @@ jobs:
 
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
+
+      - name: Install as for the package and check the result
+        run: |
+          cmake --install build --component rpi-headtracker --prefix "$RUNNER_TEMP/stage"
+          cd "$RUNNER_TEMP/stage"
+          find . -type f -o -type l | sort
+          test -f share/rpi-headtracker/templates/status.html
+          test -f share/rpi-headtracker/static/vendor/beer.min.css
+          test -f share/rpi-headtracker/models/face_detection_yunet_2022mar.onnx
+          # the program must find the private ONNX Runtime next to it, not in the build folder
+          ldd bin/RPiUSBHeadTracker | grep -F "$RUNNER_TEMP/stage/bin/../lib/rpi-headtracker/libonnxruntime.so.1"
+          ! ldd bin/RPiUSBHeadTracker | grep "not found"

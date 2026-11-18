@@ -104,20 +104,23 @@ download_model(face_detection_yunet_2022mar.onnx
 # Second face model, "NeuralNet": the head pose models of the opentrack NeuralNet
 # tracker (by Michael Welter, https://github.com/opentrack/opentrack, ISC licence),
 # run with ONNX Runtime (MIT licence). Measures nodding much better than YuNet's
-# five points, but needs more CPU. ONNX Runtime 1.32.0 comes ready-built
-# (64-bit ARM Linux only), pinned and checked by SHA256, from Microsoft's NuGet
-# package Microsoft.ML.OnnxRuntime: its GitHub repository (and with it the release
-# package used before) disappeared on 2026-11-18. The NuGet package holds all
-# platforms (184 MB); its runtimes/linux-arm64 library is byte for byte the one
-# from the former GitHub release package (SHA256 fd1db07c...).
+# five points, but needs more CPU. ONNX Runtime comes ready-built (64-bit ARM
+# Linux only), pinned and checked by SHA256, from Microsoft's NuGet package
+# Microsoft.ML.OnnxRuntime: its GitHub repository (and with it the release
+# packages used before) disappeared on 2026-11-18 without explanation.
+# Version 1.30.0 (published 2026-09-10), not the newest 1.32.0 (2026-11-13, five
+# days before): until Microsoft explains, a release from well before is the safer
+# choice. Its linux-arm64 library is byte for byte the same in the NuGet and in the
+# Maven Central package (SHA256 64e903a4...). The NuGet package holds all
+# platforms (157 MB); only the Linux ARM library and the C/C++ headers are used.
 option(RPIHT_NEURALNET "Build the NeuralNet face model (downloads ONNX Runtime)" ON)
 set(RPIHT_HAVE_NEURALNET OFF)
 if (RPIHT_NEURALNET)
   if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
     FetchContent_Declare(onnxruntime
-      URL      https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.32.0/microsoft.ml.onnxruntime.1.32.0.nupkg
-      URL_HASH SHA256=a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db
-      DOWNLOAD_NAME onnxruntime-1.32.0.zip  # a .nupkg is a zip file; the name tells CMake how to unpack it
+      URL      https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.30.0/microsoft.ml.onnxruntime.1.30.0.nupkg
+      URL_HASH SHA256=30df119bd9164eaa187666d93147448fdd4a9a1a3caf83f1505daf7af2d1c5d2
+      DOWNLOAD_NAME onnxruntime-1.30.0.zip  # a .nupkg is a zip file; the name tells CMake how to unpack it
     )
     FetchContent_MakeAvailable(onnxruntime)  # just unpacks: the package has no CMakeLists.txt
     set(_ort_lib_dir "${onnxruntime_SOURCE_DIR}/runtimes/linux-arm64/native")
@@ -228,9 +231,9 @@ install(FILES config/default.json DESTINATION "${RPIHT_SHARE_DIR}")
 install(FILES wifi/headtracker-captive.conf wifi/headtracker-wifi.rules.in DESTINATION "${RPIHT_SHARE_DIR}/wifi")
 install(PROGRAMS headtracker_device.sh wifi/headtracker-wifi.sh DESTINATION "${RPIHT_LIB_DIR}")
 if (RPIHT_HAVE_NEURALNET)
-  # The library, the name the program asks for (libonnxruntime.so.1, a link) and its licence texts
-  install(FILES "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.1.32.0" "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.1"
-          DESTINATION "${RPIHT_LIB_DIR}")
+  # The library under the name the program asks for (its soname, libonnxruntime.so.1),
+  # and its licence texts
+  install(FILES "${_ort_lib_dir}/libonnxruntime.so" DESTINATION "${RPIHT_LIB_DIR}" RENAME libonnxruntime.so.1)
   install(FILES "${onnxruntime_SOURCE_DIR}/LICENSE" DESTINATION "${RPIHT_SHARE_DIR}/licenses" RENAME onnxruntime-LICENSE.txt)
   install(FILES "${onnxruntime_SOURCE_DIR}/ThirdPartyNotices.txt" DESTINATION "${RPIHT_SHARE_DIR}/licenses"
           RENAME onnxruntime-ThirdPartyNotices.txt)
