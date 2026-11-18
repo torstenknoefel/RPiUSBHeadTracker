@@ -1,0 +1,8 @@
+rpi-headtracker (0.1.0) unstable; urgency=medium
+
+  * First Debian package: program, web pages and face models, a private copy
+    of ONNX Runtime, system user "headtracker", systemd services for the USB
+    joystick and the program, udev rule for /dev/hidg0, USB device mode in
+    config.txt.
+
+ -- Torsten Knoefel <35496159+torstenknoefel@users.noreply.github.com>  Wed, 18 Nov 2026 12:00:00 +0000

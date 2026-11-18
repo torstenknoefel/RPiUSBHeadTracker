@@ -1,0 +1,14 @@
+# Creates the USB joystick (/dev/hidg0) at boot. The udev rule of the package
+# gives it to the group "headtracker".
+[Unit]
+Description=RPi head tracker: USB joystick gadget (/dev/hidg0)
+Documentation=https://github.com/torstenknoefel/RPiUSBHeadTracker
+After=sys-kernel-config.mount systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/rpi-headtracker/headtracker_device.sh
+
+[Install]
+WantedBy=multi-user.target

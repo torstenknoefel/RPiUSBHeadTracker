@@ -1,0 +1,36 @@
+Source: rpi-headtracker
+Section: misc
+Priority: optional
+Maintainer: Torsten Knoefel <35496159+torstenknoefel@users.noreply.github.com>
+Rules-Requires-Root: no
+Build-Depends: debhelper-compat (= 13),
+               ca-certificates,
+               cmake (>= 3.24),
+               g++,
+               libasio-dev,
+               libcamera-dev,
+               libgtest-dev,
+               libopencv-dev,
+               ninja-build,
+               pkg-config
+Standards-Version: 4.6.2
+Homepage: https://github.com/torstenknoefel/RPiUSBHeadTracker
+Vcs-Browser: https://github.com/torstenknoefel/RPiUSBHeadTracker
+Vcs-Git: https://github.com/torstenknoefel/RPiUSBHeadTracker.git
+
+Package: rpi-headtracker
+Architecture: arm64
+Depends: adduser, kmod, ${misc:Depends}, ${shlibs:Depends}
+Description: head tracker for sim racing that works as a USB joystick
+ Turns a Raspberry Pi with a camera into a head tracker: the camera follows
+ the driver's head and the Pi sends the head's turn and tilt to the PC as a
+ USB joystick. Sims bind it like any game controller; no driver or software
+ is needed on the PC.
+ .
+ Settings, a live view and help are on a web page (port 18080). Two face
+ models: YuNet (OpenCV) and NeuralNet (the opentrack NeuralNet models, run
+ with a private copy of ONNX Runtime).
+ .
+ Needs a Pi whose USB-C port can work as a device (Pi 4, Pi 5, Zero 2 W,
+ CM4) and a 64-bit Raspberry Pi OS. The package turns on device mode for that
+ port in config.txt; it takes effect after a restart.

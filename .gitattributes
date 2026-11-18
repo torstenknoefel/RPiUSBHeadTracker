@@ -4,3 +4,4 @@
 *.socket.in text eol=lf
 *.rules.in text eol=lf
 wifi/*.conf text eol=lf
+debian/** text eol=lf

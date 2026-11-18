@@ -1,0 +1,133 @@
+# Builds the Debian package (debian/) for 64-bit Raspberry Pi OS bookworm and
+# trixie, installs it in a fresh container and checks the result.
+#   - every pull request and push to master: the packages are kept as workflow
+#     artifacts (Actions tab -> run -> Artifacts) for 14 days
+#   - a version tag vX.Y.Z (must match project() VERSION in CMakeLists.txt):
+#     the packages are attached to a GitHub release of that tag
+# Package versions get the Debian release: 0.1.0+deb12 (bookworm), 0.1.0+deb13 (trixie).
+name: Package
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    name: Debian package (${{ matrix.os }})
+    runs-on: ubuntu-24.04-arm
+    container: debian:${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: bookworm
+            suffix: deb12
+          - os: trixie
+            suffix: deb13
+    steps:
+      - name: Add the Raspberry Pi package source
+        # see ci.yml: the 2025 keyring package has the key signed with SHA-256
+        env:
+          KEYRING_DEB: raspberrypi-archive-keyring_2025.1+rpt1_all.deb
+          KEYRING_SHA256: 2e727149d7acb8cc7f604e66d0049161039c8aa1eaf1175e54f9e69d963d60e4
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl
+          curl -fsSL -o /tmp/keyring.deb \
+            "http://archive.raspberrypi.com/debian/pool/main/r/raspberrypi-archive-keyring/$KEYRING_DEB"
+          echo "$KEYRING_SHA256  /tmp/keyring.deb" | sha256sum -c -
+          dpkg -i /tmp/keyring.deb
+          echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.pgp] http://archive.raspberrypi.com/debian/ ${{ matrix.os }} main" \
+            > /etc/apt/sources.list.d/raspi.list
+          apt-get update
+
+      - name: Install packaging tools and build dependencies
+        run: |
+          apt-get install -y --no-install-recommends \
+            build-essential dpkg-dev debhelper git \
+            cmake ninja-build g++ pkg-config \
+            libopencv-dev libcamera-dev libasio-dev libgtest-dev
+
+      - uses: actions/checkout@v7
+        with:
+          path: src
+
+      - name: Package version for this Debian release
+        working-directory: src
+        run: |
+          sed -i "1s/(\([^)]*\))/(\1+${{ matrix.suffix }})/" debian/changelog
+          head -1 debian/changelog
+
+      - name: Build the package
+        working-directory: src
+        run: dpkg-buildpackage -b -us -uc
+
+      - name: Show the package
+        run: |
+          ls -l *.deb
+          dpkg-deb -I rpi-headtracker_*_arm64.deb
+          dpkg-deb -c rpi-headtracker_*_arm64.deb
+
+      - name: Install it in this container and check
+        run: |
+          apt-get install -y ./rpi-headtracker_*_arm64.deb
+          getent passwd headtracker
+          id headtracker | grep -q '(video)'
+          test -x /usr/bin/RPiUSBHeadTracker
+          test -f /usr/share/rpi-headtracker/default.json
+          test -f /usr/lib/udev/rules.d/60-rpi-headtracker.rules
+          ls /usr/lib/systemd/system/rpi-headtracker.service /usr/lib/systemd/system/rpi-headtracker-gadget.service
+          # (a line starting with "!" would never stop the step, hence the if)
+          if ldd /usr/bin/RPiUSBHeadTracker | grep "not found"; then exit 1; fi
+          # found through the RPATH, so ldd shows /usr/bin/../lib/rpi-headtracker/
+          ldd /usr/bin/RPiUSBHeadTracker | grep -F "/usr/bin/../lib/rpi-headtracker/libonnxruntime.so.1"
+          # starts and stops at the wrong data folder (no camera here)
+          if /usr/bin/RPiUSBHeadTracker -d /nonexistent; then exit 1; fi
+          apt-get purge -y rpi-headtracker
+          test ! -e /usr/bin/RPiUSBHeadTracker
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rpi-headtracker-${{ matrix.os }}
+          path: rpi-headtracker_*_arm64.deb
+          retention-days: 14
+
+  release:
+    name: Attach to the GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: deb
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag must match the project version
+        run: |
+          version=$(sed -n 's/^project *(RPiUSBHeadTracker VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          echo "CMakeLists.txt: $version, tag: ${GITHUB_REF_NAME}"
+          test "v$version" = "${GITHUB_REF_NAME}"
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: rpi-headtracker-*
+          merge-multiple: true
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l *.deb
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Debian packages for 64-bit Raspberry Pi OS: +deb12 for bookworm, +deb13 for trixie."
+          gh release upload "$GITHUB_REF_NAME" *.deb --clobber

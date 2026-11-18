@@ -1,0 +1,116 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: RPiUSBHeadTracker
+Upstream-Contact: https://github.com/torstenknoefel/RPiUSBHeadTracker/issues
+Source: https://github.com/torstenknoefel/RPiUSBHeadTracker
+Comment: The package contains files that CMake downloads at build time (pinned,
+ checked by SHA256): the libraries Crow, taocpp config/json, PEGTL and LCCV
+ (compiled into the program), ONNX Runtime (ready-built library), the face
+ models, BeerCSS with the Material Symbols fonts, and Barlow Condensed.
+ .
+ OPEN POINTS before passing the package on: the project itself has no
+ licence yet, and LCCV has no licence file in its repository.
+
+Files: *
+Copyright: 2024-2026 Torsten Knoefel
+License: not-yet-chosen
+ No licence has been chosen for this project yet; until then all rights are
+ reserved by the author.
+
+Files: usr/lib/rpi-headtracker/libonnxruntime.so.1
+Copyright: Microsoft Corporation
+License: MIT
+Comment: ONNX Runtime 1.30.0, from the NuGet package Microsoft.ML.OnnxRuntime.
+ Its third-party notices are in
+ /usr/share/rpi-headtracker/licenses/onnxruntime-ThirdPartyNotices.txt.
+
+Files: usr/share/rpi-headtracker/models/face_detection_yunet_*.onnx
+Copyright: Shiqi Yu and contributors (OpenCV model zoo)
+License: MIT
+
+Files: usr/share/rpi-headtracker/models/head-localizer.onnx
+       usr/share/rpi-headtracker/models/head-pose-0.5-small.onnx
+Copyright: Michael Welter and opentrack contributors
+License: ISC
+Comment: The networks were trained partly on datasets meant for research or
+ non-commercial use; check this before any commercial use.
+
+Files: usr/share/rpi-headtracker/static/vendor/beer.min.*
+       usr/share/rpi-headtracker/static/vendor/*.svg
+Copyright: 2021 Beer css!
+License: MIT
+
+Files: usr/share/rpi-headtracker/static/vendor/material-symbols-*.woff2
+Copyright: Google LLC
+License: Apache-2.0
+ On Debian systems, the full text is in /usr/share/common-licenses/Apache-2.0.
+
+Files: usr/share/rpi-headtracker/static/vendor/barlow-condensed-*.woff2
+Copyright: 2017 The Barlow Project Authors
+License: OFL-1.1
+ The full text is in /usr/share/rpi-headtracker/static/vendor/barlow-condensed-LICENSE.txt.
+
+Files: (compiled into /usr/bin/RPiUSBHeadTracker) Crow
+Copyright: Crow contributors
+License: BSD-3-Clause
+
+Files: (compiled into /usr/bin/RPiUSBHeadTracker) taocpp config, taocpp json
+Copyright: Dr. Colin Hirsch and Daniel Frey
+License: MIT
+
+Files: (compiled into /usr/bin/RPiUSBHeadTracker) PEGTL
+Copyright: Dr. Colin Hirsch and Daniel Frey
+License: BSL-1.0
+
+Files: (compiled into /usr/bin/RPiUSBHeadTracker) LCCV
+Copyright: kbarni (author of LCCV) and contributors
+License: unknown
+ The LCCV repository (github.com/kbarni/LCCV) has no licence file.
+
+License: MIT
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+
+License: ISC
+ Permission to use, copy, modify, and/or distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0; see
+ /usr/share/common-licenses/Apache-2.0.
+
+License: OFL-1.1
+ SIL Open Font License, Version 1.1; full text in
+ /usr/share/rpi-headtracker/static/vendor/barlow-condensed-LICENSE.txt.
+
+License: BSD-3-Clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the conditions in the Crow
+ repository's LICENSE file are met (github.com/CrowCpp/Crow).
+
+License: BSL-1.0
+ Boost Software License, Version 1.0; see
+ https://www.boost.org/LICENSE_1_0.txt.

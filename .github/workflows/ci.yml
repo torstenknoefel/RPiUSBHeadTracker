@@ -77,4 +77,5 @@ jobs:
           ls share/rpi-headtracker/models/face_detection_yunet_202*.onnx  # 2022 or 2023 model, by OpenCV version
           # the program must find the private ONNX Runtime next to it, not in the build folder
           ldd bin/RPiUSBHeadTracker | grep -F "$RUNNER_TEMP/stage/bin/../lib/rpi-headtracker/libonnxruntime.so.1"
-          ! ldd bin/RPiUSBHeadTracker | grep "not found"
+          # (a line starting with "!" would never stop the step, hence the if)
+          if ldd bin/RPiUSBHeadTracker | grep "not found"; then exit 1; fi
