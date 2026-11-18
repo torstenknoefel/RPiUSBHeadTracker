@@ -5,3 +5,4 @@
 *.rules.in text eol=lf
 wifi/*.conf text eol=lf
 debian/** text eol=lf
+image/** text eol=lf

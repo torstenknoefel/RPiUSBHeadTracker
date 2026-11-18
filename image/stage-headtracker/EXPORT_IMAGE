@@ -1,0 +1,2 @@
+# This stage writes the image: <date>-headtracker-<version>.img.xz
+IMG_SUFFIX=""

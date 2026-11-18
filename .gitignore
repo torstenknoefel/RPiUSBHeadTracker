@@ -4,3 +4,6 @@
 
 /.vs
 /out
+
+# SD card images built locally with image/build.sh
+/deploy
