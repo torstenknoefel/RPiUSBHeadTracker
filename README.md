@@ -228,7 +228,7 @@ Joining a network keeps the old connection to the same network until the new one
 
 Open `http://<address of the Pi>:18080` in a browser on the PC or on a phone in the same network. The menu on the left switches between the pages. On a phone the menu moves to the bottom of the screen.
 
-The pages follow Material Design 3 (with [BeerCSS](https://www.beercss.com)). The colours are a Material 3 scheme made from racing red (`#e8412b`) in `static/colors.css`, with a light and a dark version; the browser's or the system's setting picks one. Numbers are shown in Barlow Condensed italic, like a timing screen. The logo is `static/logo.svg`.
+The pages follow Material Design 3 (with [BeerCSS](https://www.beercss.com)). The colours are a Material 3 scheme made from racing red (`#e8412b`) in `static/colors.css`, with a light and a dark version; the browser's or the system's setting picks one. Numbers are shown in Barlow Condensed italic, like a timing screen. The logo (`static/logo.svg`) is a racing helmet with a double arrow for turning the head both ways; the helmet is the Material Symbols icon `sports_motorsports` (Apache 2.0), the same one the Help page uses for "In your sim".
 
 ### Status bar
 
