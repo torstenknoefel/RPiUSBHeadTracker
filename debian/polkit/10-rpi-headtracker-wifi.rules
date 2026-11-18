@@ -1,0 +1,11 @@
+// Lets the head tracker (user "headtracker", Debian package rpi-headtracker)
+// change the Wi-Fi through NetworkManager: join a network, forget one, open the
+// hotspot again. The program runs as a service, not in a login session, so it
+// needs this permission.
+// "10-": polkit uses the first rule that decides, in file name order over
+// /etc/polkit-1/rules.d and /usr/share/polkit-1/rules.d, and the system's
+// 50-default.rules would ask for an admin password first.
+polkit.addRule(function(action, subject) {
+  if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 && subject.user == "headtracker")
+    return polkit.Result.YES;
+});

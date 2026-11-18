@@ -1,0 +1,16 @@
+# Port 80 on the hotspot's address (10.42.0.1): phones check for internet on
+# port 80 and so get the setup page. rpi-headtracker-portal.service passes the
+# connections on to the web server. FreeBind: the address only exists while the
+# hotspot is open.
+[Unit]
+Description=RPi head tracker: port 80 on the hotspot
+Documentation=https://github.com/torstenknoefel/RPiUSBHeadTracker
+# The same socket of a development setup (install_wifi.sh): never both
+Conflicts=headtracker-portal.socket
+
+[Socket]
+ListenStream=10.42.0.1:80
+FreeBind=yes
+
+[Install]
+WantedBy=sockets.target

@@ -72,15 +72,17 @@ jobs:
         working-directory: src
         run: dpkg-buildpackage -b -us -uc
 
-      - name: Show the package
+      - name: Show the packages
         run: |
           ls -l *.deb
-          dpkg-deb -I rpi-headtracker_*_arm64.deb
-          dpkg-deb -c rpi-headtracker_*_arm64.deb
+          for p in rpi-headtracker_*_arm64.deb rpi-headtracker-wifi_*_all.deb; do
+            dpkg-deb -I "$p"
+            dpkg-deb -c "$p"
+          done
 
-      - name: Install it in this container and check
+      - name: Install them in this container and check
         run: |
-          apt-get install -y ./rpi-headtracker_*_arm64.deb
+          apt-get install -y ./rpi-headtracker_*_arm64.deb ./rpi-headtracker-wifi_*_all.deb
           getent passwd headtracker
           id headtracker | grep -q '(video)'
           test -x /usr/bin/RPiUSBHeadTracker
@@ -93,13 +95,29 @@ jobs:
           ldd /usr/bin/RPiUSBHeadTracker | grep -F "/usr/bin/../lib/rpi-headtracker/libonnxruntime.so.1"
           # starts and stops at the wrong data folder (no camera here)
           if /usr/bin/RPiUSBHeadTracker -d /nonexistent; then exit 1; fi
-          apt-get purge -y rpi-headtracker
+          # the Wi-Fi package
+          test -x /usr/lib/rpi-headtracker/headtracker-wifi.sh
+          test -x /usr/lib/rpi-headtracker/headtracker-portal.sh
+          test -f /etc/NetworkManager/dnsmasq-shared.d/headtracker-captive.conf
+          grep -q '"headtracker"' /usr/share/polkit-1/rules.d/10-rpi-headtracker-wifi.rules
+          ls /usr/lib/systemd/system/rpi-headtracker-wifi.service \
+             /usr/lib/systemd/system/rpi-headtracker-portal.socket \
+             /usr/lib/systemd/system/rpi-headtracker-portal.service
+          # the portal script finds the web server's port in the settings
+          mkdir -p /tmp/portal && printf '{\n   "port": 18123\n}\n' > /tmp/portal/config.json
+          # (sh -x prints the proxy command before it runs; without a socket it stops at once)
+          HEADTRACKER_CONFIG=/tmp/portal/config.json sh -x /usr/lib/rpi-headtracker/headtracker-portal.sh 2>&1 \
+            | grep -F "127.0.0.1:18123"
+          apt-get purge -y rpi-headtracker-wifi rpi-headtracker
           test ! -e /usr/bin/RPiUSBHeadTracker
+          test ! -e /usr/share/polkit-1/rules.d/10-rpi-headtracker-wifi.rules
 
       - uses: actions/upload-artifact@v7
         with:
           name: rpi-headtracker-${{ matrix.os }}
-          path: rpi-headtracker_*_arm64.deb
+          path: |
+            rpi-headtracker_*_arm64.deb
+            rpi-headtracker-wifi_*_all.deb
           retention-days: 14
 
   release:
@@ -129,5 +147,5 @@ jobs:
         run: |
           ls -l *.deb
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Debian packages for 64-bit Raspberry Pi OS: +deb12 for bookworm, +deb13 for trixie."
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Debian packages for 64-bit Raspberry Pi OS: +deb12 for bookworm, +deb13 for trixie. rpi-headtracker is the head tracker; rpi-headtracker-wifi adds the Wi-Fi setup without a terminal (own hotspot when on no network)."
           gh release upload "$GITHUB_REF_NAME" *.deb --clobber

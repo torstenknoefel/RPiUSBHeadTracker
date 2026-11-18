@@ -54,9 +54,30 @@ The restart is needed once, for the USB device mode. Then open `http://<name of 
 | udev rule: `/dev/hidg0` belongs to the group `headtracker` | `/usr/lib/udev/rules.d/60-rpi-headtracker.rules` |
 | USB device mode (`dtoverlay=dwc2,dr_mode=peripheral`), if not there yet | end of `/boot/firmware/config.txt` |
 
-`journalctl -u rpi-headtracker -f` shows the program's messages. `sudo apt remove rpi-headtracker` removes the program and keeps the settings; `sudo apt purge rpi-headtracker` also removes the settings and the USB device mode line. A development setup from step 7 below (service `headtracker`) is stopped when the package's service starts; remove it with `sudo bash install_service.sh --remove`. The Wi-Fi setup (step 8) is not in the package yet.
+`journalctl -u rpi-headtracker -f` shows the program's messages. `sudo apt remove rpi-headtracker` removes the program and keeps the settings; `sudo apt purge rpi-headtracker` also removes the settings and the USB device mode line. A development setup from step 7 below (service `headtracker`) is stopped when the package's service starts; remove it with `sudo bash install_service.sh --remove`.
 
-The package is built by GitHub Actions (`.github/workflows/package.yml`, files in `debian/`); on a version tag `vX.Y.Z` the packages are attached to that release. To build it on the Pi: `sudo apt install build-essential debhelper dpkg-dev`, then `dpkg-buildpackage -b -us -uc` in the source folder (needs internet: CMake downloads the libraries).
+### Wi-Fi setup without a terminal (optional)
+
+The second package, `rpi-headtracker-wifi_<version>+deb12_all.deb` (or `+deb13`), adds the Wi-Fi setup of [step 8](#8-wi-fi-setup-without-a-terminal-optional): when the Pi is on no Wi-Fi network, it opens its own open Wi-Fi **HeadTracker-XXXX**, and a phone that joins it gets the setup page.
+
+```bash
+sudo apt install ./rpi-headtracker-wifi_*_all.deb
+```
+
+> **Careful:** on a Pi you reach over its Wi-Fi, a lost network makes it open the hotspot instead – it is then reachable only there (or over Ethernet).
+
+| The Wi-Fi package sets up | Where |
+|---|---|
+| Service `rpi-headtracker-wifi`: opens the hotspot when the Pi is on no network | `/usr/lib/rpi-headtracker/headtracker-wifi.sh` |
+| Socket `rpi-headtracker-portal`: port 80 on the hotspot to the web server's port (from the settings) | `/usr/lib/rpi-headtracker/headtracker-portal.sh` |
+| On the hotspot every name points to the tracker (setup page opens by itself) | `/etc/NetworkManager/dnsmasq-shared.d/headtracker-captive.conf` |
+| Permission for the user `headtracker` to change the Wi-Fi | `/usr/share/polkit-1/rules.d/10-rpi-headtracker-wifi.rules` |
+
+`sudo apt purge rpi-headtracker-wifi` removes it again, including the hotspot connection in NetworkManager. A development setup from step 8 (`install_wifi.sh`) is stopped when the package's services start; remove it with `sudo bash install_wifi.sh --remove`.
+
+### Building the packages
+
+The packages are built by GitHub Actions (`.github/workflows/package.yml`, files in `debian/`); on a version tag `vX.Y.Z` the packages are attached to that release. To build them on the Pi: `sudo apt install build-essential debhelper dpkg-dev`, then `dpkg-buildpackage -b -us -uc` in the source folder (needs internet: CMake downloads the libraries).
 
 ## Setup on the Pi
 
@@ -410,7 +431,7 @@ GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these te
 | `debian/`, `.github/workflows/package.yml` | Debian package and the workflow that builds it. |
 | `.github/workflows/ci.yml` | Build and unit tests on GitHub Actions. |
 | `WifiSetup.*`, `Command.*` | Wi-Fi state, nearby networks, joining and forgetting (nmcli, without a shell). |
-| `install_wifi.sh`, `wifi/` | Hotspot when the Pi is on no Wi-Fi network, and the setup page's helpers. |
+| `install_wifi.sh`, `wifi/` | Hotspot when the Pi is on no Wi-Fi network, port 80 on the hotspot, the setup page's helpers (development setup; the package `rpi-headtracker-wifi` uses the same scripts). |
 | `tests/` | Unit tests. |
 
 ## Libraries

@@ -1,0 +1,4 @@
+usr/bin/RPiUSBHeadTracker
+usr/share/rpi-headtracker
+usr/lib/rpi-headtracker/libonnxruntime.so.1
+usr/lib/rpi-headtracker/headtracker_device.sh

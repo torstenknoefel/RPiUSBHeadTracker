@@ -1,0 +1,16 @@
+# Opens the head tracker's own Wi-Fi (hotspot) when the Pi is on no Wi-Fi network.
+[Unit]
+Description=RPi head tracker: own Wi-Fi (hotspot) when on no Wi-Fi network
+Documentation=https://github.com/torstenknoefel/RPiUSBHeadTracker
+Requires=NetworkManager.service
+After=NetworkManager.service
+# The same service of a development setup (install_wifi.sh): never both
+Conflicts=headtracker-wifi.service
+
+[Service]
+ExecStart=/usr/lib/rpi-headtracker/headtracker-wifi.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

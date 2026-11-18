@@ -1,0 +1,4 @@
+usr/lib/rpi-headtracker/headtracker-wifi.sh
+usr/lib/rpi-headtracker/headtracker-portal.sh
+wifi/headtracker-captive.conf etc/NetworkManager/dnsmasq-shared.d/
+debian/polkit/10-rpi-headtracker-wifi.rules usr/share/polkit-1/rules.d/
