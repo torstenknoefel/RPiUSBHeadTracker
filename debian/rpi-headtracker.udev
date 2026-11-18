@@ -1,0 +1,3 @@
+# The USB joystick of the head tracker: the program (user "headtracker") writes
+# its reports there without root
+KERNEL=="hidg[0-9]*", GROUP="headtracker", MODE="0660"

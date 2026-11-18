@@ -31,7 +31,36 @@ The Pi is plugged into the PC with a USB cable. It registers as a USB game contr
 
 **Processing power:** YuNet takes about 20 ms per frame on a Pi 4; NeuralNet about 25 ms and keeps all four cores busy, so it is meant for a Pi 4 or 5 at up to 30 frames per second.
 
+## Install the package
+
+On a 64-bit Raspberry Pi OS, the Debian package sets everything up: download `rpi-headtracker_<version>+deb12_arm64.deb` (bookworm) or `…+deb13_arm64.deb` (trixie) from the [releases](https://github.com/torstenknoefel/RPiUSBHeadTracker/releases) (packages of every pull request are under the [Package workflow's](https://github.com/torstenknoefel/RPiUSBHeadTracker/actions/workflows/package.yml) runs as artifacts), then:
+
+```bash
+sudo apt install ./rpi-headtracker_*_arm64.deb
+sudo reboot
+```
+
+The restart is needed once, for the USB device mode. Then open `http://<name of the Pi>:18080`.
+
+| The package sets up | Where |
+|---|---|
+| Program | `/usr/bin/RPiUSBHeadTracker` |
+| Web pages, styles, face models, `default.json` | `/usr/share/rpi-headtracker` |
+| ONNX Runtime (private copy, found by the program itself) and the joystick script | `/usr/lib/rpi-headtracker` |
+| Settings (copied from `default.json` at the first start, then changed by the web page) | `/var/lib/rpi-headtracker/config.json` |
+| System user `headtracker` (group `video` for the camera) | |
+| Service `rpi-headtracker-gadget`: creates the USB joystick at boot | |
+| Service `rpi-headtracker`: runs the program as `headtracker`, restarts it after a crash | |
+| udev rule: `/dev/hidg0` belongs to the group `headtracker` | `/usr/lib/udev/rules.d/60-rpi-headtracker.rules` |
+| USB device mode (`dtoverlay=dwc2,dr_mode=peripheral`), if not there yet | end of `/boot/firmware/config.txt` |
+
+`journalctl -u rpi-headtracker -f` shows the program's messages. `sudo apt remove rpi-headtracker` removes the program and keeps the settings; `sudo apt purge rpi-headtracker` also removes the settings and the USB device mode line. A development setup from step 7 below (service `headtracker`) is stopped when the package's service starts; remove it with `sudo bash install_service.sh --remove`. The Wi-Fi setup (step 8) is not in the package yet.
+
+The package is built by GitHub Actions (`.github/workflows/package.yml`, files in `debian/`); on a version tag `vX.Y.Z` the packages are attached to that release. To build it on the Pi: `sudo apt install debhelper dpkg-dev`, then `dpkg-buildpackage -b -us -uc` in the source folder (needs internet: CMake downloads the libraries).
+
 ## Setup on the Pi
+
+To build the program yourself:
 
 ### 1. Let the USB port work as a device
 
@@ -378,6 +407,8 @@ GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these te
 | `templates/`, `static/` | Web pages and style sheets. |
 | `headtracker_device.sh` | Creates the USB joystick. |
 | `install_service.sh`, `service/` | Start at boot and after a crash (systemd). |
+| `debian/`, `.github/workflows/package.yml` | Debian package and the workflow that builds it. |
+| `.github/workflows/ci.yml` | Build and unit tests on GitHub Actions. |
 | `WifiSetup.*`, `Command.*` | Wi-Fi state, nearby networks, joining and forgetting (nmcli, without a shell). |
 | `install_wifi.sh`, `wifi/` | Hotspot when the Pi is on no Wi-Fi network, and the setup page's helpers. |
 | `tests/` | Unit tests. |

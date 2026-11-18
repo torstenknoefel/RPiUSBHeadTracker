@@ -1,0 +1,37 @@
+#!/usr/bin/make -f
+# Builds the rpi-headtracker package with CMake.
+# CMake downloads the libraries, the web page styles, the face models and ONNX
+# Runtime at configure time (FetchContent, pinned and checked by SHA256), so the
+# build needs an internet connection - it is not meant for the Debian archive.
+
+include /usr/share/dpkg/architecture.mk
+
+BUILDDIR = obj-$(DEB_HOST_GNU_TYPE)
+PKGDIR = $(CURDIR)/debian/rpi-headtracker
+
+%:
+	dh $@ --buildsystem=cmake+ninja --builddirectory=$(BUILDDIR)
+
+# Newer debhelper turns FetchContent downloads off; this build needs them
+override_dh_auto_configure:
+	dh_auto_configure -- -DCMAKE_BUILD_TYPE=Release -DFETCHCONTENT_FULLY_DISCONNECTED=OFF
+
+# Only the program's own files: the fetched libraries (PEGTL, LCCV) would
+# install their headers too
+override_dh_auto_install:
+	DESTDIR=$(PKGDIR) cmake --install $(BUILDDIR) --component rpi-headtracker --prefix /usr
+
+# ONNX Runtime is a private copy in /usr/lib/rpi-headtracker, found through the
+# program's RPATH: dpkg-shlibdeps must look there, and it is not a public library
+override_dh_shlibdeps:
+	dh_shlibdeps -l$(PKGDIR)/usr/lib/rpi-headtracker
+
+override_dh_makeshlibs:
+	dh_makeshlibs -X/usr/lib/rpi-headtracker
+
+# The ready-built ONNX Runtime has no debug information to compress
+override_dh_dwz:
+
+override_dh_installsystemd:
+	dh_installsystemd --name=rpi-headtracker-gadget
+	dh_installsystemd --name=rpi-headtracker

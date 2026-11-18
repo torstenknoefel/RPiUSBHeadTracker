@@ -14,6 +14,14 @@ fi
 
 modprobe libcomposite
 
+# The USB port must be able to work as a device (dtoverlay=dwc2,dr_mode=peripheral
+# in config.txt, active after a restart)
+UDC_NAME=$(ls /sys/class/udc 2>/dev/null | head -n 1)
+if [ -z "$UDC_NAME" ]; then
+  echo "No USB device controller: add dtoverlay=dwc2,dr_mode=peripheral to /boot/firmware/config.txt and restart the Pi" >&2
+  exit 1
+fi
+
 GADGET=/sys/kernel/config/usb_gadget/rpi_headtracker
 
 OWNER="${1:-$SUDO_USER}"
@@ -64,7 +72,7 @@ echo -ne \\x05\\x01\\x09\\x04\\xA1\\x01\\x15\\x81\\x25\\x7F\\x09\\x01\\xA1\\x00\
 [ -e configs/c.1/hid.usb0 ] || ln -s functions/hid.usb0 configs/c.1
 
 # Activate device
-ls /sys/class/udc | head -n 1 > UDC
+echo "$UDC_NAME" > UDC
 
 # Let the program's user write reports without root
 if [ -n "$OWNER" ]; then

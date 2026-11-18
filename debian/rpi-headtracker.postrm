@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+MARKER="# rpi-headtracker: the USB-C port works as a device (USB joystick)"
+
+if [ "$1" = "purge" ]; then
+    # Settings of the program
+    rm -rf /var/lib/rpi-headtracker
+
+    # The lines this package added to config.txt (the marker line and the two after it)
+    for f in /boot/firmware/config.txt /boot/config.txt; do
+        if [ -f "$f" ] && grep -qxF "$MARKER" "$f"; then
+            sed -i "/^$(printf '%s' "$MARKER" | sed 's/[][\/.*^$]/\\&/g')\$/,+2d" "$f"
+            echo "rpi-headtracker: USB device mode removed from $f (takes effect after a restart)."
+        fi
+    done
+    # The system user "headtracker" stays, as usual for Debian packages
+fi
+
+#DEBHELPER#
+
+exit 0

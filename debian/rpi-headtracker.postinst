@@ -1,0 +1,49 @@
+#!/bin/sh
+set -e
+
+MARKER="# rpi-headtracker: the USB-C port works as a device (USB joystick)"
+
+# config.txt of Raspberry Pi OS (bookworm and later in /boot/firmware)
+config_txt() {
+    for f in /boot/firmware/config.txt /boot/config.txt; do
+        if [ -f "$f" ]; then
+            echo "$f"
+            return
+        fi
+    done
+}
+
+if [ "$1" = "configure" ]; then
+    # System user for the program, with access to the camera
+    if ! getent passwd headtracker >/dev/null; then
+        adduser --system --group --home /var/lib/rpi-headtracker --no-create-home \
+            headtracker >/dev/null
+    fi
+    adduser --quiet headtracker video
+
+    # The USB-C port must work as a device; takes effect after a restart
+    CONFIG_TXT=$(config_txt)
+    if [ -n "$CONFIG_TXT" ] && \
+       ! grep -Eq '^[[:space:]]*dtoverlay=dwc2,dr_mode=peripheral' "$CONFIG_TXT"; then
+        printf '\n%s\n[all]\ndtoverlay=dwc2,dr_mode=peripheral\n' "$MARKER" >> "$CONFIG_TXT"
+        echo "rpi-headtracker: USB device mode added to $CONFIG_TXT - restart the Pi once."
+    fi
+
+    # A development setup (install_service.sh) would compete for the camera
+    if [ -e /etc/systemd/system/headtracker.service ]; then
+        echo "rpi-headtracker: the service \"headtracker\" from install_service.sh is installed."
+        echo "  This package stops it when it starts; remove it with: sudo bash install_service.sh --remove"
+    fi
+
+    # The joystick device may exist already: load the new udev rule and apply
+    # it, so /dev/hidg0 belongs to the group "headtracker" before the service starts
+    if [ -e /dev/hidg0 ] && command -v udevadm >/dev/null; then
+        udevadm control --reload 2>/dev/null || true
+        udevadm trigger --action=change --sysname-match='hidg*' 2>/dev/null || true
+        udevadm settle 2>/dev/null || true
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0
