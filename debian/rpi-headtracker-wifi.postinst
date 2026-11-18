@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    # A development setup (install_wifi.sh) has the same services under other names
+    if [ -e /etc/systemd/system/headtracker-wifi.service ]; then
+        echo "rpi-headtracker-wifi: the services from install_wifi.sh are installed."
+        echo "  This package stops them when it starts; remove them with: sudo bash install_wifi.sh --remove"
+    fi
+fi
+
+#DEBHELPER#
+
+# NetworkManager's DNS server for the hotspot reads the new setting when the
+# hotspot opens next; nothing to restart here.
+
+exit 0

@@ -1,0 +1,13 @@
+# Passes connections to port 80 of the hotspot on to the head tracker's web
+# server (its port from /var/lib/rpi-headtracker/config.json). Started by
+# rpi-headtracker-portal.socket.
+[Unit]
+Description=RPi head tracker: port 80 on the hotspot to the web server
+Documentation=https://github.com/torstenknoefel/RPiUSBHeadTracker
+Requires=rpi-headtracker-portal.socket
+After=rpi-headtracker-portal.socket
+
+[Service]
+ExecStart=/usr/lib/rpi-headtracker/headtracker-portal.sh
+DynamicUser=yes
+PrivateTmp=yes

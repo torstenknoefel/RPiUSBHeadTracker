@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "purge" ]; then
+    # The hotspot connection that headtracker-wifi.sh made in NetworkManager
+    if command -v nmcli >/dev/null 2>&1; then
+        nmcli connection delete id headtracker-hotspot >/dev/null 2>&1 || true
+    fi
+    rm -rf /run/headtracker-wifi
+fi
+
+#DEBHELPER#
+
+exit 0

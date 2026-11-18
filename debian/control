@@ -34,3 +34,27 @@ Description: head tracker for sim racing that works as a USB joystick
  Needs a Pi whose USB-C port can work as a device (Pi 4, Pi 5, Zero 2 W,
  CM4) and a 64-bit Raspberry Pi OS. The package turns on device mode for that
  port in config.txt; it takes effect after a restart.
+ .
+ For the Wi-Fi setup without a terminal, install rpi-headtracker-wifi too.
+
+Package: rpi-headtracker-wifi
+Architecture: all
+Depends: dnsmasq-base,
+         network-manager,
+         polkitd,
+         rpi-headtracker (>= ${source:Version}),
+         systemd,
+         ${misc:Depends}
+Description: Wi-Fi setup for the RPi head tracker, without a terminal
+ When the head tracker's Pi is on no Wi-Fi network (the first start, or the
+ known network is gone for 90 seconds), it opens its own open Wi-Fi
+ "HeadTracker-XXXX". A phone or PC that joins it gets the tracker's setup page
+ by itself (captive portal), picks the home network and types its password.
+ .
+ Contains the service that opens the hotspot, port 80 on the hotspot for the
+ setup page, a DNS setting that points every name to the tracker while the
+ hotspot is open, and the permission for the tracker (user "headtracker") to
+ change the Wi-Fi through NetworkManager.
+ .
+ Careful: on a Pi that is reached over its Wi-Fi, a lost network makes it open
+ the hotspot instead; it is then reachable only there (or over Ethernet).

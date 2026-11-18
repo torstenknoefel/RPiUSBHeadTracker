@@ -224,9 +224,11 @@ endif()
 # headers and files, which are not needed at run time.
 # The program then runs with -d <prefix>/share/rpi-headtracker:
 #   bin/RPiUSBHeadTracker
-#   share/rpi-headtracker/   templates, static (with vendor), models, default.json, wifi/
+#   share/rpi-headtracker/   templates, static (with vendor), models, default.json
 #   lib/rpi-headtracker/     ONNX Runtime (private: found through the program's RPATH),
-#                            headtracker_device.sh, headtracker-wifi.sh
+#                            headtracker_device.sh, headtracker-wifi.sh, headtracker-portal.sh
+# The Debian packages split these files (debian/*.install): the Wi-Fi scripts go
+# into rpi-headtracker-wifi, which also takes its config files from wifi/ and debian/.
 # Not distribution-wide lib/<arch>: ONNX Runtime is the project's own copy.
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME rpi-headtracker)
@@ -241,8 +243,8 @@ install(FILES static/colors.css static/fonts.css static/logo.svg static/carbon-t
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static/vendor" DESTINATION "${RPIHT_SHARE_DIR}/static")
 install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models" DESTINATION "${RPIHT_SHARE_DIR}")
 install(FILES config/default.json DESTINATION "${RPIHT_SHARE_DIR}")
-install(FILES wifi/headtracker-captive.conf wifi/headtracker-wifi.rules.in DESTINATION "${RPIHT_SHARE_DIR}/wifi")
-install(PROGRAMS headtracker_device.sh wifi/headtracker-wifi.sh DESTINATION "${RPIHT_LIB_DIR}")
+install(PROGRAMS headtracker_device.sh wifi/headtracker-wifi.sh wifi/headtracker-portal.sh
+        DESTINATION "${RPIHT_LIB_DIR}")
 if (RPIHT_HAVE_NEURALNET)
   # The library under the name the program asks for (its soname, libonnxruntime.so.1),
   # and its licence texts
