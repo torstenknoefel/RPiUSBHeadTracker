@@ -104,22 +104,30 @@ download_model(face_detection_yunet_2022mar.onnx
 # Second face model, "NeuralNet": the head pose models of the opentrack NeuralNet
 # tracker (by Michael Welter, https://github.com/opentrack/opentrack, ISC licence),
 # run with ONNX Runtime (MIT licence). Measures nodding much better than YuNet's
-# five points, but needs more CPU. ONNX Runtime is downloaded as the ready-built
-# package from its GitHub release (64-bit ARM Linux only), pinned and checked by
-# SHA256; there is no fork for release packages.
+# five points, but needs more CPU. ONNX Runtime 1.32.0 comes ready-built
+# (64-bit ARM Linux only), pinned and checked by SHA256, from Microsoft's NuGet
+# package Microsoft.ML.OnnxRuntime: its GitHub repository (and with it the release
+# package used before) disappeared on 2026-11-18. The NuGet package holds all
+# platforms (184 MB); its runtimes/linux-arm64 library is byte for byte the one
+# from the former GitHub release package (SHA256 fd1db07c...).
 option(RPIHT_NEURALNET "Build the NeuralNet face model (downloads ONNX Runtime)" ON)
 set(RPIHT_HAVE_NEURALNET OFF)
 if (RPIHT_NEURALNET)
   if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
     FetchContent_Declare(onnxruntime
-      URL      https://github.com/microsoft/onnxruntime/releases/download/v1.32.0/onnxruntime-linux-aarch64-1.32.0.tgz
-      URL_HASH SHA256=81a46251dd90da4122f4b9ceb4433f836fbc79ee1eddffca7c09033af81a1939
+      URL      https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.32.0/microsoft.ml.onnxruntime.1.32.0.nupkg
+      URL_HASH SHA256=a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db
+      DOWNLOAD_NAME onnxruntime-1.32.0.zip  # a .nupkg is a zip file; the name tells CMake how to unpack it
     )
     FetchContent_MakeAvailable(onnxruntime)  # just unpacks: the package has no CMakeLists.txt
+    set(_ort_lib_dir "${onnxruntime_SOURCE_DIR}/runtimes/linux-arm64/native")
+    # The program asks for the library by its soname, libonnxruntime.so.1
+    file(CREATE_LINK libonnxruntime.so "${_ort_lib_dir}/libonnxruntime.so.1" SYMBOLIC)
     add_library(onnxruntime_prebuilt SHARED IMPORTED)
     set_target_properties(onnxruntime_prebuilt PROPERTIES
-      IMPORTED_LOCATION "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.1.32.0"
-      INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_SOURCE_DIR}/include"
+      IMPORTED_LOCATION "${_ort_lib_dir}/libonnxruntime.so"
+      IMPORTED_SONAME libonnxruntime.so.1
+      INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_SOURCE_DIR}/build/native/include"
     )
     set(_opentrack https://raw.githubusercontent.com/opentrack/opentrack/03a0e69b02a11c425e2f07c728686ff7f2d6517a/tracker-neuralnet/models)
     download_model(head-localizer.onnx

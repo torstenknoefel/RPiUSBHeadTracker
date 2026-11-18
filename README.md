@@ -64,7 +64,7 @@ ninja -C build
 
 The first `cmake` run needs an internet connection: it downloads the libraries listed under [Libraries](#libraries) into `build/_deps`, and the face models into `build/models`. Later builds in the same build folder use these copies.
 
-The NeuralNet face model needs ONNX Runtime. CMake downloads its ready-built package (64-bit ARM Linux only, so a 64-bit Raspberry Pi OS is needed). On other systems, or with `-DRPIHT_NEURALNET=OFF`, the program is built with YuNet only; the Config page then shows NeuralNet as "not built in".
+The NeuralNet face model needs ONNX Runtime. CMake downloads its ready-built library (64-bit ARM Linux only, so a 64-bit Raspberry Pi OS is needed). On other systems, or with `-DRPIHT_NEURALNET=OFF`, the program is built with YuNet only; the Config page then shows NeuralNet as "not built in".
 
 ### 4. Create the USB joystick
 
@@ -342,6 +342,8 @@ ctest --test-dir build
 
 To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 
+GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these tests for every pull request and every change on `master`, on 64-bit ARM for Raspberry Pi OS bookworm (Debian with the Raspberry Pi package source; trixie follows once the camera library LCCV builds against its newer libcamera). Camera, USB joystick and Wi-Fi are only tested on a real Pi.
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -393,7 +395,7 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [taocpp/json](https://github.com/taocpp/json) | JSON, used by config | `11a31e1` (main, 2025-03-11) |
 | [taocpp/PEGTL](https://github.com/taocpp/PEGTL) | Parser, used by json | `54a2e32` (main, 2025-05-18) |
 | [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
-| [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT licence) | Runs the NeuralNet face model. The ready-built release package for 64-bit ARM Linux, downloaded from the release page (there is no fork for release packages). | release 1.32.0 |
+| [ONNX Runtime](https://onnxruntime.ai) (MIT licence) | Runs the NeuralNet face model. Ready-built for 64-bit ARM Linux, from Microsoft's NuGet package [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) (184 MB, all platforms; only the Linux ARM library is used). Its GitHub repository disappeared on 2026-11-18; the library in the NuGet package is byte for byte the one from the former GitHub release. | 1.32.0 |
 
 The web pages use these. CMake downloads them from the npm registry (pinned, checked by SHA256) into `<build dir>/static/vendor`, and the Pi serves them itself: on the tracker's own Wi-Fi the phone has no internet, so the pages load nothing from the internet.
 
