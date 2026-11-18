@@ -17,5 +17,6 @@ TrackerSettings tracker_settings(const RPiHTConfigData& d)
   s.filter_beta = std::max(d.track_speed, 0.0);
   s.detect_size = detect_size_for(d.track_detect_width, cv::Size(int(d.cam_width), int(d.cam_height)));
   s.model = d.track_model == "neuralnet" ? FaceModel::NeuralNet : FaceModel::YuNet;
+  s.neural_threads = std::clamp(d.track_threads, 1, 16);
   return s;
 }

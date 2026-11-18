@@ -67,3 +67,15 @@ TEST(TrackerSettings, OddValuesAreKeptWithinLimits)
   EXPECT_DOUBLE_EQ(s.filter_min_cutoff, 0.05);
   EXPECT_DOUBLE_EQ(s.filter_beta, 0);
 }
+
+TEST(TrackerSettings, NeuralNetCores)
+{
+  RPiHTConfigData d = config();
+  EXPECT_EQ(tracker_settings(d).neural_threads, 3);  // default: one core of four left free
+  d.track_threads = 4;
+  EXPECT_EQ(tracker_settings(d).neural_threads, 4);
+  d.track_threads = 0;   // at least one
+  EXPECT_EQ(tracker_settings(d).neural_threads, 1);
+  d.track_threads = 99;  // more than the Pi has: HeadTracker uses all it has
+  EXPECT_EQ(tracker_settings(d).neural_threads, 16);
+}

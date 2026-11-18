@@ -211,6 +211,21 @@ TEST_F(RPiHTConfigTest, TrackingSettingsDefaultWhenMissing)
   EXPECT_FALSE(d.track_invert_y);
   EXPECT_EQ(d.track_detect_width, 256);
   EXPECT_EQ(d.track_model, "yunet");
+  EXPECT_EQ(d.track_threads, 3);
+}
+
+TEST_F(RPiHTConfigTest, NeuralNetCoresLoadSaveAndCountAsTracking)
+{
+  RPiHTConfig config(path);
+  RPiHTConfigData t = config.get_data();
+  t.track_threads = 4;
+  EXPECT_FALSE(config.get_data().same_tracking(t));
+  config.set_tracking(t);
+  EXPECT_TRUE(config.get_data().is_active);   // used right away, no restart
+  EXPECT_FALSE(config.get_data().is_saved);
+  config.save();
+  RPiHTConfig again(path);
+  EXPECT_EQ(again.get_data().track_threads, 4);
 }
 
 TEST_F(RPiHTConfigTest, TrackingSettingsLoadFromFile)

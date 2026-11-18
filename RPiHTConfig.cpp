@@ -41,6 +41,7 @@ namespace tao::json
     TAO_JSON_BIND_OPTIONAL("track_invert_y", &RPiHTConfigData::track_invert_y),
     TAO_JSON_BIND_OPTIONAL("track_detect_width", &RPiHTConfigData::track_detect_width),
     TAO_JSON_BIND_OPTIONAL("track_model", &RPiHTConfigData::track_model),
+    TAO_JSON_BIND_OPTIONAL("track_threads", &RPiHTConfigData::track_threads),
     TAO_JSON_BIND_OPTIONAL("saved", &RPiHTConfigData::is_saved),
     TAO_JSON_BIND_OPTIONAL("active", &RPiHTConfigData::is_active)
   >
