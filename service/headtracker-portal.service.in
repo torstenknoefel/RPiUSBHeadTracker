@@ -1,0 +1,11 @@
+# Passes connections to port 80 of the hotspot on to the web server (port @PORT@).
+# Started by headtracker-portal.socket. Installed by install_wifi.sh.
+[Unit]
+Description=RPiUSBHeadTracker: port 80 on the hotspot to the web server
+Requires=headtracker-portal.socket
+After=headtracker-portal.socket
+
+[Service]
+ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:@PORT@
+DynamicUser=yes
+PrivateTmp=yes

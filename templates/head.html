@@ -4,11 +4,11 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="google" content="notranslate">
     <title>{{title}}</title>
-    <link href="https://cdn.jsdelivr.net/npm/beercss@3.12.13/dist/cdn/beer.min.css" rel="stylesheet">
-    <script type="module" src="https://cdn.jsdelivr.net/npm/beercss@3.12.13/dist/cdn/beer.min.js"></script>
+    <!-- Everything comes from the Pi itself: on the tracker's own Wi-Fi there is no internet.
+         BeerCSS 3.12.13 and its icon fonts are put into static/vendor by CMake. -->
+    <link href="/static/vendor/beer.min.css" rel="stylesheet">
+    <script type="module" src="/static/vendor/beer.min.js"></script>
     <!-- Barlow Condensed: brand typeface for the number readouts (Material 3 "display" role) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+    <link href="/static/fonts.css" rel="stylesheet">
     <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
     <link href="/static/colors.css" rel="stylesheet">

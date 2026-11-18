@@ -90,7 +90,7 @@
             <input type="hidden" name="section" value="camera" />
             <fieldset class="border round label">
                 <legend>Camera <a href="/help#trouble" class="help-link" title="Help: settings undone" aria-label="Help: settings undone"><i>help</i></a></legend>
-                <p class="small-text">Used after a restart. <b>Try these</b> restarts with them for {{trial_seconds}} seconds; press <b>Keep</b> in the bar at the top to stay with them.</p>
+                <p class="small-text">Used after a restart. <b>Try</b> restarts with them for {{trial_seconds}} seconds; press <b>Keep</b> in the bar at the top to stay with them.</p>
                 <div class="camera-size">
                     <div class="field border label">
                         <input type="number" id="cam_width" name="cam_width" value="{{cam_width}}" placeholder=" " />
@@ -112,11 +112,11 @@
                 <nav>
                     <button type="reset" class="border" title="Put back the values this page showed when it was loaded">
                         <i>undo</i>
-                        <span>Undo edits</span>
+                        <span>Undo</span>
                     </button>
                     <button type="submit" name="action" value="Try" title="Restart with these values for {{trial_seconds}} seconds">
                         <i>restart_alt</i>
-                        <span>Try these</span>
+                        <span>Try</span>
                     </button>
                     <button type="submit" name="action" value="Save" title="Write these values to the config file; they are used from the next start">
                         <i>save</i>
@@ -125,6 +125,15 @@
                 </nav>
             </fieldset>
         </form>
+
+        <!-- Wi-Fi: on its own page (also the hotspot's setup page) -->
+        <fieldset class="border round label">
+            <legend>Wi-Fi <a href="/help#wifi" class="help-link" title="Help: Wi-Fi" aria-label="Help: Wi-Fi"><i>help</i></a></legend>
+            <p class="small-text" id="wifi-now">–</p>
+            <nav class="right-align">
+                <a class="button border" href="/setup"><i>wifi</i><span>Change Wi-Fi</span></a>
+            </nav>
+        </fieldset>
 
         <!-- Joystick device and web server: used after a restart -->
         <form action="/config" method="post">
@@ -152,11 +161,11 @@
                 <nav>
                     <button type="reset" class="border" title="Put back the values this page showed when it was loaded">
                         <i>undo</i>
-                        <span>Undo edits</span>
+                        <span>Undo</span>
                     </button>
                     <button type="submit" name="action" value="Try" title="Restart with these values for {{trial_seconds}} seconds">
                         <i>restart_alt</i>
-                        <span>Try these</span>
+                        <span>Try</span>
                     </button>
                     <button type="submit" name="action" value="Save" title="Write these values to the config file; they are used from the next start">
                         <i>save</i>
@@ -168,6 +177,18 @@
     </main>
     <script>
         const el = id => document.getElementById(id);
+
+        // Which Wi-Fi the tracker is on (once, when the page opens)
+        (async () => {
+            try {
+                const r = await fetch("/wifi", { cache: "no-store" });
+                const w = await r.json();
+                el("wifi-now").textContent = !w.available ? "This Pi has no Wi-Fi (or NetworkManager is not running)."
+                    : w.mode === "client" ? "On " + w.ssid + ", address " + (w.address || "–") + "."
+                    : w.mode === "hotspot" ? "Own Wi-Fi " + w.ssid + " is open: the tracker is on no network."
+                    : "Not on a network right now.";
+            } catch (e) { /* the bar shows the lost connection */ }
+        })();
 
         // Load the next picture only when the previous one has arrived, at most
         // about 10 per second. Requests never pile up on a slow connection, and

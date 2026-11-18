@@ -87,7 +87,7 @@
         const el = id => document.getElementById(id);
         const bar = el("statusbar");
         let restartFrom = null;  // instance of the program that is restarting
-        // The Config page was just sent with "Try these"
+        // The Config page was just sent with "Try"
         if ("{{restart_instance}}") restartFrom = Number("{{restart_instance}}");
         // ... with a new port: the program answers there after the restart
         const trialUrl = "{{trial_url}}";
@@ -104,7 +104,7 @@
         // Pages with settings (Config, Adjust) show the values after a restart or "Back to saved"
         const settingsPage = ["/config", "/adjust"].includes(location.pathname);
         // Load the page again with GET: reload() would send the form a second time
-        // when the page came from "Try these" or "Save"
+        // when the page came from "Try" or "Save"
         function reloadConfig() { location.replace(location.pathname); }
 
         function showRestarting() {

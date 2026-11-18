@@ -1,0 +1,14 @@
+# Opens the head tracker's own Wi-Fi when the Pi is on no Wi-Fi network.
+# Installed by install_wifi.sh, which fills in the @...@ values.
+[Unit]
+Description=RPiUSBHeadTracker: hotspot when on no Wi-Fi network
+After=NetworkManager.service
+Requires=NetworkManager.service
+
+[Service]
+ExecStart=/bin/bash @SOURCE@/wifi/headtracker-wifi.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

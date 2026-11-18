@@ -15,6 +15,7 @@
 #include "NeuralPose.h"
 #include "QueryParser.h"
 #include "TrackerSettings.h"
+#include "WifiSetup.h"
 
 extern std::atomic_bool run;
 extern std::atomic_bool reload_config;
@@ -156,6 +157,50 @@ static std::vector<std::string> own_addresses()
   }
   freeifaddrs(all);
   return list;
+}
+
+// The Wi-Fi. One for the whole program: the web app starts again with every
+// restart, a network being joined must not be lost then.
+static WifiSetup& wifi_setup()
+{
+  static WifiSetup wifi;
+  return wifi;
+}
+
+// Address of the setup page on the hotspot (see wifi/headtracker-wifi.sh)
+static const char* const hotspot_setup_url = "http://10.42.0.1/setup";
+
+// Wi-Fi state, nearby networks and the last join as JSON for the setup page
+static crow::json::wvalue wifi_json(bool with_networks)
+{
+  auto& wifi = wifi_setup();
+  const WifiStatus s = wifi.status();
+  crow::json::wvalue j;
+  j["available"] = s.available;
+  j["mode"] = s.mode;
+  j["ssid"] = s.ssid;
+  j["address"] = s.address;
+  j["hostname"] = host_name();
+  const WifiJoin join = wifi.last_join();
+  j["join"]["ssid"] = join.ssid;
+  j["join"]["busy"] = join.busy;
+  j["join"]["ok"] = join.ok;
+  j["join"]["message"] = join.message;
+  j["join"]["age_s"] = join.age_s;
+  if (with_networks) {
+    crow::json::wvalue::list list;
+    for (const auto& n : wifi.networks()) {
+      crow::json::wvalue o;
+      o["ssid"] = n.ssid;
+      o["signal"] = n.signal;
+      o["security"] = n.security;
+      o["open"] = n.open();
+      o["usable"] = wifi::key_mgmt_for(n.security) != "unsupported";
+      list.push_back(std::move(o));
+    }
+    j["networks"] = std::move(list);
+  }
+  return j;
 }
 
 // Tracker state as JSON for the web pages
@@ -342,6 +387,11 @@ public:
           auto page = crow::mustache::load("help.html");
           crow::mustache::context ctx({ {"title", "Help"} });
           ctx["trial_seconds"] = int(trial_.timeout().count());
+          ctx["hostname"] = host_name();
+          {
+            std::lock_guard<std::mutex> lock(mtx_);
+            ctx["port"] = running_.port;
+          }
           return crow::response(page.render(ctx));
         });
 
@@ -374,6 +424,71 @@ public:
           auto response = crow::response(j);
           response.set_header("Cache-Control", "no-store");
           return response;
+        });
+
+    // Wi-Fi setup page: on the hotspot the first page a phone sees
+    CROW_ROUTE(webapp, "/setup")
+      ([this]()
+        {
+          auto page = crow::mustache::load("setup.html");
+          crow::mustache::context ctx({ {"title", "Wi-Fi"} });
+          ctx["hostname"] = host_name();
+          {
+            std::lock_guard<std::mutex> lock(mtx_);
+            ctx["port"] = running_.port;  // the page's address once the Pi is on the home network
+          }
+          auto response = crow::response(page.render(ctx));
+          // A phone must not show a stored copy: its requests would then not
+          // reach the tracker, and the user would not notice
+          response.set_header("Cache-Control", "no-store");
+          return response;
+        });
+
+    // Wi-Fi state; with ?networks=1 also the nearby networks (takes a few seconds)
+    CROW_ROUTE(webapp, "/wifi")
+      ([](const crow::request& req)
+        {
+          auto response = crow::response(wifi_json(req.url_params.get("networks") != nullptr));
+          response.set_header("Cache-Control", "no-store");
+          return response;
+        });
+
+    // Joins a network (form: ssid, password); the answer comes before it is joined
+    CROW_ROUTE(webapp, "/wifi/join").methods("POST"_method)
+      ([](const crow::request& req)
+        {
+          QueryParser post(req.body);
+          const bool started = wifi_setup().join(post.get("ssid"), post.get("password"));
+          crow::json::wvalue j;
+          j["started"] = started;
+          return crow::response(j);
+        });
+
+    // Forgets the network the Pi is on; without another one the hotspot opens
+    CROW_ROUTE(webapp, "/wifi/forget").methods("POST"_method)
+      ([]()
+        {
+          crow::json::wvalue j;
+          j["ok"] = wifi_setup().forget();
+          return crow::response(j);
+        });
+
+    // Any other address. A phone on the hotspot checks for internet with
+    // addresses of other names ("connectivitycheck.gstatic.com/generate_204"):
+    // it is sent to the setup page, so it opens that page by itself.
+    CROW_CATCHALL_ROUTE(webapp)
+      ([](const crow::request& req, crow::response& res)
+        {
+          if (!wifi::own_host_name(req.get_header_value("Host"), host_name())) {
+            res.code = 302;
+            res.set_header("Location", hotspot_setup_url);
+            res.set_header("Cache-Control", "no-store");
+          }
+          else {
+            res.code = 404;
+            res.body = "Not found";
+          }
+          res.end();
         });
 
     // Newest camera frame as JPEG. Takes a copy of the frame the camera thread

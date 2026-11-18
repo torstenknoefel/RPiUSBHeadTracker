@@ -148,6 +148,27 @@ The first argument is the config file (default `/etc/USBHT.json`), the second th
 | `sudo systemctl start headtracker` | Starts it again. |
 | `sudo bash install_service.sh --remove` | Removes both services. |
 
+### 8. Wi-Fi setup without a terminal (optional)
+
+```bash
+sudo bash install_wifi.sh ~/USBHT.json
+```
+
+When the Pi is on no Wi-Fi network – the first time, or when the known network is gone for 90 seconds – it opens its own open Wi-Fi **HeadTracker-XXXX** (the end of its Wi-Fi address). A phone or PC that joins it gets the setup page by itself (like hotel Wi-Fi: "Sign in to network"), or opens `http://10.42.0.1/setup`. Phones send the requests of a normal browser tab over mobile data when the Wi-Fi has no internet, so then mobile data has to be off; the "Sign in to network" window always uses the hotspot. There the user picks the home network and types its password. The setup page is also on the Config page (**Change Wi-Fi**), with **Forget** for the current network.
+
+> **Careful:** on a Pi you reach over its Wi-Fi, a lost network makes it open the hotspot instead – it is then reachable only there (or over Ethernet).
+
+| Part | Does |
+|---|---|
+| `headtracker-wifi` service (`wifi/headtracker-wifi.sh`) | Opens the hotspot when the Pi is on no network. Before that it notes the nearby networks for the setup page (the Wi-Fi cannot search while it is a hotspot). While nobody uses the hotspot, it tries the saved networks again every 5 minutes. |
+| `headtracker-portal` socket | Port 80 on the hotspot goes to the web server (phones check for internet on port 80). |
+| `/etc/NetworkManager/dnsmasq-shared.d/headtracker-captive.conf` | On the hotspot every name points to the tracker, so phones open the setup page. |
+| `/etc/polkit-1/rules.d/10-headtracker-wifi.rules` | Lets the program (your user) change the Wi-Fi through NetworkManager. |
+
+Joining a network keeps the old connection to the same network until the new one works. With a wrong password the new one is forgotten, the hotspot opens again and the setup page says why. Company networks (with a user name) and WEP networks are not supported. Wi-Fi changes go through `nmcli` without a shell, so network names and passwords cannot run commands.
+
+`sudo bash install_wifi.sh --remove` removes it all again.
+
 ## The web interface
 
 Open `http://<address of the Pi>:18080` in a browser on the PC or on a phone in the same network. The menu on the left switches between the pages. On a phone the menu moves to the bottom of the screen.
@@ -240,15 +261,15 @@ Setting up the camera, the face model and the connections. At the top is the liv
 
 The Camera part and the joystick and web server part of the Config page have the same three buttons. Each sends only the values of its own part:
 
-- **Undo edits** puts the fields back to the values the page showed when it was loaded.
-- **Try these** restarts camera, web server and joystick with the new values on trial: press **Keep** in the status bar within 30 seconds, or the last working settings come back. Kept values are not saved yet; the status bar shows that.
+- **Undo** puts the fields back to the values the page showed when it was loaded.
+- **Try** restarts camera, web server and joystick with the new values on trial: press **Keep** in the status bar within 30 seconds, or the last working settings come back. Kept values are not saved yet; the status bar shows that.
 - **Save** writes all values to the config file; these ones are used after the next restart.
 
 The explanations in these parts are about the buttons; the status bar at the top says what state the settings are in right now.
 
 A wrong camera size, port or joystick device could make the program unusable or the web page unreachable. So these settings are only tried at first:
 
-1. **Try these** remembers the settings the program runs with now (the last working ones) in `<config file>.trial`, for example `/etc/USBHT.json.trial`, and restarts with the new ones.
+1. **Try** remembers the settings the program runs with now (the last working ones) in `<config file>.trial`, for example `/etc/USBHT.json.trial`, and restarts with the new ones.
 2. The program checks that the web server answers on its port, the joystick device opens and the camera delivers a picture. If one of these fails, it goes back to the last working settings right away.
 3. Otherwise the status bar counts down 30 seconds. **Keep** keeps the new settings; **Go back** or doing nothing brings back the last working settings.
 4. If the program stops during the trial (crash, power off), it starts the next time with the last working settings. With the service from step 7, systemd starts it again right after a crash.
@@ -269,6 +290,7 @@ Short help for using the tracker, in parts that open with a click (the chips at 
 - **In your sim:** binding the two axes, the sim's own dead zone and curve, inverting, and [opentrack](https://github.com/opentrack/opentrack) for sims that take head tracking only from TrackIR-type software.
 - **What you see:** the flags and colours of the bar at the top, and what each page is for.
 - **Tuning:** what to change on Adjust for a symptom ("the view shakes when I hold still", "nodding hardly moves the view" …).
+- **Wi-Fi:** setting up the Wi-Fi with the tracker's own hotspot (see [step 8](#8-wi-fi-setup-without-a-terminal-optional)), changing and forgetting a network.
 - **Problems:** no face found, the PC does not see the joystick, settings undone, the page gone after a port change, no connection.
 - **About this tracker:** version, name and addresses of the Pi, camera, face model, joystick device, config file, running time and OpenCV version, from `/info` (JSON).
 
@@ -325,6 +347,8 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | Web interface does not open | Check the port in the config file and that the program is running. The log shows `Crow/master server is running at …`. |
 | No camera picture | Check the camera cable and that `rpicam-hello --list-cameras` (or `libcamera-hello --list-cameras` on older systems) finds the camera. |
 | The service does not start | `journalctl -u headtracker -u headtracker-gadget -b` shows why. After 5 crashes in 2 minutes systemd stops trying; `sudo systemctl reset-failed headtracker` and `sudo systemctl start headtracker` try again. |
+| Pi not reachable any more after `install_wifi.sh` | It is on no network and has opened its own Wi-Fi **HeadTracker-…**: join it and open `http://10.42.0.1/setup`. `journalctl -u headtracker-wifi -b` shows what it did. |
+| Setup page says "Insufficient privileges" | The polkit rule is missing or names another user: run `install_wifi.sh` again with sudo from the program's user. |
 
 ## Project layout
 
@@ -346,6 +370,8 @@ To build without tests, add `-DRPIHT_BUILD_TESTS=OFF` to the `cmake` command.
 | `templates/`, `static/` | Web pages and style sheets. |
 | `headtracker_device.sh` | Creates the USB joystick. |
 | `install_service.sh`, `service/` | Start at boot and after a crash (systemd). |
+| `WifiSetup.*`, `Command.*` | Wi-Fi state, nearby networks, joining and forgetting (nmcli, without a shell). |
+| `install_wifi.sh`, `wifi/` | Hotspot when the Pi is on no Wi-Fi network, and the setup page's helpers. |
 | `tests/` | Unit tests. |
 
 ## Libraries
@@ -363,11 +389,11 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT licence) | Runs the NeuralNet face model. The ready-built release package for 64-bit ARM Linux, downloaded from the release page (there is no fork for release packages). | release 1.32.0 |
 
-The web pages load these in the browser, from the internet:
+The web pages use these. CMake downloads them from the npm registry (pinned, checked by SHA256) into `<build dir>/static/vendor`, and the Pi serves them itself: on the tracker's own Wi-Fi the phone has no internet, so the pages load nothing from the internet.
 
 | Library | Used for | Version |
 |---|---|---|
-| [BeerCSS](https://www.beercss.com) (MIT licence) | Material Design 3 components and Material Symbols icons | 3.12.13 (cdn.jsdelivr.net) |
-| [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) (SIL Open Font License) | Number readouts | Google Fonts |
+| [BeerCSS](https://www.beercss.com) (MIT licence) with the [Material Symbols](https://fonts.google.com/icons) icon fonts (Apache 2.0) | Material Design 3 components and icons | 3.12.13 |
+| [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) from [Fontsource](https://fontsource.org) (SIL Open Font License 1.1) | Number readouts | 5.2.6 |
 
 The colour scheme in `static/colors.css` was made once with Google's [material-color-utilities](https://github.com/material-foundation/material-color-utilities) 0.3.0; the pages do not load it.
