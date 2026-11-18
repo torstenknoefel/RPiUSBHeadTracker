@@ -46,6 +46,9 @@ namespace wifi
   // NetworkManager key management for a security text: "" (open), "wpa-psk",
   // "sae" (WPA3 only); "unsupported" for WEP and enterprise (802.1X) networks
   std::string key_mgmt_for(const std::string& security);
+  // The values of "nmcli -g field1,field2,... connection show": nmcli prints
+  // one value per line (a ':' in a value is escaped as "\:")
+  std::vector<std::string> split_values(const std::string& output);
   // A short explanation for a failed "nmcli connection up"
   std::string join_failure(const std::string& nmcli_output);
   // true if a browser asked for this tracker by a name it has ('host' is the

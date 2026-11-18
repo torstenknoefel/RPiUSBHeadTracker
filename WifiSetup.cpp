@@ -54,6 +54,20 @@ namespace wifi
     return list;
   }
 
+  std::vector<std::string> split_values(const std::string& output)
+  {
+    std::vector<std::string> values;
+    std::istringstream lines(output);
+    for (std::string l; std::getline(lines, l);) {
+      const auto f = split_terse(l);
+      std::string v = f[0];
+      for (size_t i = 1; i < f.size(); ++i)
+        v += ":" + f[i];  // an unescaped ':' (should not happen) stays in the value
+      values.push_back(v);
+    }
+    return values;
+  }
+
   std::string key_mgmt_for(const std::string& security)
   {
     if (security.empty() || security == "--")
@@ -243,7 +257,7 @@ std::vector<std::string> WifiSetup::uuids_for_ssid(const std::string& ssid) cons
     if (run_command({ "nmcli", "-t", "-g", "802-11-wireless.ssid,802-11-wireless.mode",
                       "connection", "show", "uuid", f[0] }, v) != 0)
       continue;
-    const auto g = wifi::split_terse(v.substr(0, v.find('\n')));
+    const auto g = wifi::split_values(v);
     if (g.size() >= 2 && g[0] == ssid && g[1] != "ap")
       list.push_back(f[0]);
   }

@@ -23,6 +23,14 @@ TEST(WifiSplitTerse, EmptyFirstFieldForHiddenNetworks)
   EXPECT_EQ(split_terse(":100:WPA2: "), (std::vector<std::string>{ "", "100", "WPA2", " " }));
 }
 
+TEST(WifiSplitValues, OneValuePerLine)
+{
+  // "nmcli -g 802-11-wireless.ssid,802-11-wireless.mode connection show uuid ..."
+  EXPECT_EQ(wifi::split_values("ParkNet\ninfrastructure\n"), (std::vector<std::string>{ "ParkNet", "infrastructure" }));
+  EXPECT_EQ(wifi::split_values("Cafe\\: Free\nap\n"), (std::vector<std::string>{ "Cafe: Free", "ap" }));
+  EXPECT_TRUE(wifi::split_values("").empty());
+}
+
 TEST(WifiParseNetworks, LeavesOutHiddenOnesAndSortsByStrength)
 {
   const auto list = wifi::parse_networks(
