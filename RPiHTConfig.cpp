@@ -1,5 +1,11 @@
+#include <cerrno>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <tao/config.hpp>
 
@@ -43,6 +49,66 @@ namespace tao::json
 };
 
 
+namespace
+{
+  // Writes all of 'text' to the open file and flushes it to the card
+  bool write_all(int fd, const std::string& text)
+  {
+    size_t done = 0;
+    while (done < text.size()) {
+      const ssize_t n = ::write(fd, text.data() + done, text.size() - done);
+      if (n < 0 && errno == EINTR)
+        continue;
+      if (n <= 0)
+        return false;
+      done += size_t(n);
+    }
+    return ::fsync(fd) == 0;
+  }
+}
+
+// Writes 'text' to 'path' so that a power cut (the Pi is often unplugged
+// together with the PC) leaves either the old or the new file, never an empty
+// one: into a temporary file in the same folder, flushed to the card, then
+// renamed over the old file. If no file can be made in that folder (for example
+// /etc for a normal user), the file is overwritten in place instead (flushed too).
+bool write_file_safely(const std::filesystem::path& path, const std::string& text)
+{
+  struct stat old {};
+  const bool exists = ::stat(path.c_str(), &old) == 0;
+  const mode_t mode = exists ? (old.st_mode & 07777) : 0644;
+  // A file the user may not write stays as it is (renaming over it would work)
+  if (exists && ::access(path.c_str(), W_OK) != 0)
+    return false;
+
+  std::string temp = path.string() + ".XXXXXX";
+  const int fd = ::mkstemp(temp.data());
+  if (fd >= 0) {
+    ::fchmod(fd, mode);  // keep the old file's permissions
+    const bool written = write_all(fd, text);
+    const bool closed = ::close(fd) == 0;
+    if (written && closed && ::rename(temp.c_str(), path.c_str()) == 0) {
+      // The new name must reach the card too
+      const std::string dir = path.has_parent_path() ? path.parent_path().string() : ".";
+      const int dfd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY);
+      if (dfd >= 0) {
+        ::fsync(dfd);
+        ::close(dfd);
+      }
+      return true;
+    }
+    ::unlink(temp.c_str());
+    if (!written || !closed)
+      return false;  // the folder takes files, but writing failed (card full?)
+  }
+  // No temporary file possible in that folder: overwrite in place
+  const int out = ::open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
+  if (out < 0)
+    return false;
+  const bool ok = write_all(out, text);
+  return ::close(out) == 0 && ok;
+}
+
 class RPiHTConfig::Impl
 {
 public:
@@ -51,7 +117,7 @@ public:
   {
     config_data = cfg_ptr;
     config_path = path;
-    tao::config::internal::try_catch([=]() {
+    tao::config::internal::try_catch([&]() {
       v = tao::config::from_file(std::filesystem::path(path));
       *config_data = v.as <RPiHTConfigData>(); //TODO: Error handling test?
       });
@@ -75,11 +141,11 @@ public:
   };
   static bool write_to(const std::filesystem::path& path, const RPiHTConfigData& data)
   {
-    std::ofstream file(path, std::ios::out | std::ios::trunc);
     tao::config::value value;
     value.assign(data);
-    tao::json::to_stream(file, value, 3);
-    return file.good();
+    std::ostringstream text;
+    tao::json::to_stream(text, value, 3);
+    return write_file_safely(path, text.str());
   };
   void print()
   {
@@ -88,14 +154,13 @@ public:
   };
   void save()
   {
-    std::ofstream config_file;
-    config_file.open(config_path, std::ios::out | std::ios::trunc);
     config_data->is_saved = true; // set before writing, so the file records the saved state
     v.assign(*config_data);
     tao::json::to_stream(std::cout, v, 3);
     std::cout << "...saving config..." << std::endl;
-    tao::json::to_stream(config_file, v, 3);
-    if (!config_file.good())
+    std::ostringstream text;
+    tao::json::to_stream(text, v, 3);
+    if (!write_file_safely(config_path, text.str()))
     {
       config_data->is_saved = false;
       std::cerr << "Error: could not write config file " << config_path << std::endl;

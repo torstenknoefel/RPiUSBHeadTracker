@@ -44,7 +44,7 @@ dtoverlay=dwc2,dr_mode=peripheral
 ### 2. Install the build tools and libraries
 
 ```bash
-sudo apt install cmake ninja-build g++ libopencv-dev libcamera-dev libssl-dev libasio-dev
+sudo apt install cmake ninja-build g++ libopencv-dev libcamera-dev libasio-dev
 ```
 
 CMake 3.24 or newer is needed (bookworm has 3.25).
@@ -107,11 +107,13 @@ The program reads its settings from `/etc/USBHT.json`, or from the file given wi
 | `track_detect_width` | Width in pixels the camera picture is shrunk to for face detection with YuNet; the height keeps the camera's aspect ratio. Larger = steadier, above all up/down, but slower. Optional, default 256. |
 | `track_model` | Face model: `"yunet"` or `"neuralnet"` (see [Head tracking](#head-tracking)). Optional, default `"yunet"`. |
 
-When you press **Save** in the web interface, the program writes this file itself and adds the keys `saved` and `active`. Your user needs write permission for the file.
+`config/default.json` is a file to start from.
+
+When you press **Save** in the web interface, the program writes this file itself and adds the keys `saved` and `active`. Your user needs write permission for the file. The program writes a new file next to it, flushes it to the card and then puts it in place of the old one, so pulling the plug while saving leaves the old or the new settings, never an empty file. If it may not create files in that folder (for example `/etc` for a normal user), it overwrites the file in place.
 
 ### 6. Start
 
-Start the program from the build folder, because it loads the web pages from the `templates` and `static` folders there:
+The program loads the web pages (`templates`, `static`) and the face models (`models`) from its data folder: the current folder, or the one given with `-d`. In the build folder:
 
 ```bash
 cd build
@@ -120,8 +122,11 @@ cd build
 
 | Option | Meaning |
 |---|---|
-| `-c`, `--configfile` | Full path to the config file. Default: `/etc/USBHT.json`. |
+| `-c`, `--configfile` | Path to the config file. Default: `/etc/USBHT.json`. |
+| `-d`, `--datadir` | Data folder with `templates`, `static` and `models`. Default: the current folder. |
 | `-h`, `--help` | Show the options. |
+
+`cmake --install build --component rpi-headtracker --prefix /usr` installs the program for a package: `bin/RPiUSBHeadTracker`, the data folder `share/rpi-headtracker` (pages, styles, face models, `default.json`) and `lib/rpi-headtracker` (ONNX Runtime, which the program finds there by itself, and the scripts). The installed program then runs with `-d /usr/share/rpi-headtracker`.
 
 Stop it with **Ctrl+C**, or `pkill -x RPiUSBHeadTrack` from another terminal. The program then closes the camera, the web server and the joystick device cleanly.
 
@@ -367,7 +372,8 @@ GitHub Actions (`.github/workflows/ci.yml`) builds the program and runs these te
 | `OneEuroFilter.h` | Smoothing filter. |
 | `JoystickMapping.*` | Head angle → joystick value (range, dead zone, curve). |
 | `RPiHTWebApp.*` | Web interface and its routes. |
-| `RPiHTConfig.*` | Reads and writes the config file. |
+| `RPiHTConfig.*` | Reads and writes the config file (saving is power-cut safe). |
+| `config/default.json` | Config file to start from. |
 | `QueryParser.*` | Reads the values sent by the Config form. |
 | `templates/`, `static/` | Web pages and style sheets. |
 | `headtracker_device.sh` | Creates the USB joystick. |
@@ -388,8 +394,8 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [taocpp/config](https://github.com/taocpp/config) | Reading the config file | `93a455e` (main, 2024-04-13) |
 | [taocpp/json](https://github.com/taocpp/json) | JSON, used by config | `11a31e1` (main, 2025-03-11) |
 | [taocpp/PEGTL](https://github.com/taocpp/PEGTL) | Parser, used by json | `54a2e32` (main, 2025-05-18) |
+| [ONNX Runtime](https://onnxruntime.ai) (MIT licence) | Runs the NeuralNet face model. Ready-built for 64-bit ARM Linux, from Microsoft's NuGet package [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) (157 MB, all platforms; only the Linux ARM library and the headers are used). Its GitHub repository disappeared on 2026-11-18 without explanation, five days after release 1.32.0; until Microsoft explains, the build uses 1.30.0 from two months earlier (the same library in the NuGet and the Maven Central package). | 1.30.0 |
 | [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `d246763` (main, 2026-10-28), with a small patch at download time (`cmake/patch_lccv.cmake`) so it builds against both libcamera 0.5 (bookworm, its own `Span` for array controls) and 0.8 (trixie, renamed control values) |
-| [ONNX Runtime](https://onnxruntime.ai) (MIT licence) | Runs the NeuralNet face model. Ready-built for 64-bit ARM Linux, from Microsoft's NuGet package [Microsoft.ML.OnnxRuntime](https://www.nuget.org/packages/Microsoft.ML.OnnxRuntime) (184 MB, all platforms; only the Linux ARM library is used). Its GitHub repository disappeared on 2026-11-18; the library in the NuGet package is byte for byte the one from the former GitHub release. | 1.32.0 |
 
 The web pages use these. CMake downloads them from the npm registry (pinned, checked by SHA256) into `<build dir>/static/vendor`, and the Pi serves them itself: on the tracker's own Wi-Fi the phone has no internet, so the pages load nothing from the internet.
 

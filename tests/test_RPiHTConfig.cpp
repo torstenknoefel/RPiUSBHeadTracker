@@ -385,3 +385,64 @@ TEST_F(RPiHTConfigTest, FilePathIsThePathItWasStartedWith)
   RPiHTConfig config(path);
   EXPECT_EQ(config.file_path(), path);
 }
+
+// Safe saving: temporary file in the same folder, flushed, renamed over the old file
+
+TEST(WriteFileSafely, WritesTheTextAndLeavesNoTemporaryFile)
+{
+  TempDir dir;
+  const auto p = dir.write("USBHT.json", "old");
+  ASSERT_TRUE(write_file_safely(p, "new text"));
+  EXPECT_EQ(read_file(p), "new text");
+  int files = 0;
+  for (const auto& e : std::filesystem::directory_iterator(p.parent_path())) {
+    (void)e;
+    ++files;
+  }
+  EXPECT_EQ(files, 1);
+}
+
+TEST(WriteFileSafely, MakesAMissingFile)
+{
+  TempDir dir;
+  ASSERT_TRUE(write_file_safely(dir.file("new.json"), "{}"));
+  EXPECT_EQ(read_file(dir.file("new.json")), "{}");
+}
+
+TEST(WriteFileSafely, KeepsThePermissions)
+{
+  TempDir dir;
+  const auto p = dir.write("USBHT.json", "old");
+  std::filesystem::permissions(p, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write,
+    std::filesystem::perm_options::replace);
+  ASSERT_TRUE(write_file_safely(p, "new"));
+  EXPECT_EQ(std::filesystem::status(p).permissions(),
+            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
+}
+
+TEST(WriteFileSafely, OverwritesInPlaceWhenTheFolderTakesNoFiles)
+{
+  if (::geteuid() == 0)
+    GTEST_SKIP() << "root can write into read-only folders";
+  TempDir dir;
+  const auto p = dir.write("USBHT.json", "old");
+  const auto folder = p.parent_path();
+  std::filesystem::permissions(folder, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
+    std::filesystem::perm_options::replace);
+  const bool ok = write_file_safely(p, "new");
+  std::filesystem::permissions(folder, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace);
+  EXPECT_TRUE(ok);
+  EXPECT_EQ(read_file(p), "new");
+}
+
+TEST(WriteFileSafely, LeavesAReadOnlyFileAlone)
+{
+  if (::geteuid() == 0)
+    GTEST_SKIP() << "root can write read-only files";
+  TempDir dir;
+  const auto p = dir.write("USBHT.json", "old");
+  std::filesystem::permissions(p, std::filesystem::perms::owner_read, std::filesystem::perm_options::replace);
+  EXPECT_FALSE(write_file_safely(p, "new"));
+  std::filesystem::permissions(p, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace);
+  EXPECT_EQ(read_file(p), "old");
+}

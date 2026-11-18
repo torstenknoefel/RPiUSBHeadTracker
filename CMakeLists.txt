@@ -118,20 +118,23 @@ endif()
 # Second face model, "NeuralNet": the head pose models of the opentrack NeuralNet
 # tracker (by Michael Welter, https://github.com/opentrack/opentrack, ISC licence),
 # run with ONNX Runtime (MIT licence). Measures nodding much better than YuNet's
-# five points, but needs more CPU. ONNX Runtime 1.32.0 comes ready-built
-# (64-bit ARM Linux only), pinned and checked by SHA256, from Microsoft's NuGet
-# package Microsoft.ML.OnnxRuntime: its GitHub repository (and with it the release
-# package used before) disappeared on 2026-11-18. The NuGet package holds all
-# platforms (184 MB); its runtimes/linux-arm64 library is byte for byte the one
-# from the former GitHub release package (SHA256 fd1db07c...).
+# five points, but needs more CPU. ONNX Runtime comes ready-built (64-bit ARM
+# Linux only), pinned and checked by SHA256, from Microsoft's NuGet package
+# Microsoft.ML.OnnxRuntime: its GitHub repository (and with it the release
+# packages used before) disappeared on 2026-11-18 without explanation.
+# Version 1.30.0 (published 2026-09-10), not the newest 1.32.0 (2026-11-13, five
+# days before): until Microsoft explains, a release from well before is the safer
+# choice. Its linux-arm64 library is byte for byte the same in the NuGet and in the
+# Maven Central package (SHA256 64e903a4...). The NuGet package holds all
+# platforms (157 MB); only the Linux ARM library and the C/C++ headers are used.
 option(RPIHT_NEURALNET "Build the NeuralNet face model (downloads ONNX Runtime)" ON)
 set(RPIHT_HAVE_NEURALNET OFF)
 if (RPIHT_NEURALNET)
   if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
     FetchContent_Declare(onnxruntime
-      URL      https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.32.0/microsoft.ml.onnxruntime.1.32.0.nupkg
-      URL_HASH SHA256=a9150bc2992cbbb6722070da9910e1ffa989a8bfc67bdd5bb8e745ca755641db
-      DOWNLOAD_NAME onnxruntime-1.32.0.zip  # a .nupkg is a zip file; the name tells CMake how to unpack it
+      URL      https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.30.0/microsoft.ml.onnxruntime.1.30.0.nupkg
+      URL_HASH SHA256=30df119bd9164eaa187666d93147448fdd4a9a1a3caf83f1505daf7af2d1c5d2
+      DOWNLOAD_NAME onnxruntime-1.30.0.zip  # a .nupkg is a zip file; the name tells CMake how to unpack it
     )
     FetchContent_MakeAvailable(onnxruntime)  # just unpacks: the package has no CMakeLists.txt
     set(_ort_lib_dir "${onnxruntime_SOURCE_DIR}/runtimes/linux-arm64/native")
@@ -207,17 +210,47 @@ add_custom_target(staticfiles
 )
 add_dependencies( RPiUSBHeadTracker staticfiles)
 
-#find_package(Drogon CONFIG REQUIRED)
-#target_link_libraries(${PROJECT_NAME} PRIVATE "libdrogon.a" "libtrantor.a"  "libz.a" "libssl.a" "libcrypto.a" "libyaml-cpp.a" "jsoncpp" "cares" "brotlicommon" "brotlidec" "brotlienc" "uuid")
-target_link_libraries(${PROJECT_NAME} PRIVATE libssl.a ${OpenCV_LIBS} liblccv Crow::Crow taocpp::config)
+# No OpenSSL: the web server has no HTTPS (Crow without CROW_ENABLE_SSL)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS} liblccv Crow::Crow taocpp::config)
 target_compile_definitions(${PROJECT_NAME} PRIVATE RPIHT_VERSION="${PROJECT_VERSION}")
 if (RPIHT_HAVE_NEURALNET)
   target_compile_definitions(${PROJECT_NAME} PRIVATE RPIHT_HAVE_NEURALNET=1)
   target_link_libraries(${PROJECT_NAME} PRIVATE onnxruntime_prebuilt)
 endif()
 
-
-
+# Installing, for the Debian package:
+#   cmake --install <build dir> --component rpi-headtracker --prefix /usr
+# Only this component: the fetched libraries (PEGTL, LCCV) install their own
+# headers and files, which are not needed at run time.
+# The program then runs with -d <prefix>/share/rpi-headtracker:
+#   bin/RPiUSBHeadTracker
+#   share/rpi-headtracker/   templates, static (with vendor), models, default.json, wifi/
+#   lib/rpi-headtracker/     ONNX Runtime (private: found through the program's RPATH),
+#                            headtracker_device.sh, headtracker-wifi.sh
+# Not distribution-wide lib/<arch>: ONNX Runtime is the project's own copy.
+include(GNUInstallDirs)
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME rpi-headtracker)
+set(RPIHT_SHARE_DIR "${CMAKE_INSTALL_DATADIR}/rpi-headtracker")
+set(RPIHT_LIB_DIR "lib/rpi-headtracker")
+set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN/../${RPIHT_LIB_DIR}")
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(DIRECTORY templates/ DESTINATION "${RPIHT_SHARE_DIR}/templates"
+        FILES_MATCHING PATTERN "*.html" PATTERN "example_chat.html" EXCLUDE)
+install(FILES static/colors.css static/fonts.css static/logo.svg static/carbon-tile.png
+        DESTINATION "${RPIHT_SHARE_DIR}/static")
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static/vendor" DESTINATION "${RPIHT_SHARE_DIR}/static")
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/models" DESTINATION "${RPIHT_SHARE_DIR}")
+install(FILES config/default.json DESTINATION "${RPIHT_SHARE_DIR}")
+install(FILES wifi/headtracker-captive.conf wifi/headtracker-wifi.rules.in DESTINATION "${RPIHT_SHARE_DIR}/wifi")
+install(PROGRAMS headtracker_device.sh wifi/headtracker-wifi.sh DESTINATION "${RPIHT_LIB_DIR}")
+if (RPIHT_HAVE_NEURALNET)
+  # The library under the name the program asks for (its soname, libonnxruntime.so.1),
+  # and its licence texts
+  install(FILES "${_ort_lib_dir}/libonnxruntime.so" DESTINATION "${RPIHT_LIB_DIR}" RENAME libonnxruntime.so.1)
+  install(FILES "${onnxruntime_SOURCE_DIR}/LICENSE" DESTINATION "${RPIHT_SHARE_DIR}/licenses" RENAME onnxruntime-LICENSE.txt)
+  install(FILES "${onnxruntime_SOURCE_DIR}/ThirdPartyNotices.txt" DESTINATION "${RPIHT_SHARE_DIR}/licenses"
+          RENAME onnxruntime-ThirdPartyNotices.txt)
+endif()
 
 # Unit tests (GoogleTest; on the Pi: sudo apt install libgtest-dev). Run with: ctest --test-dir <build dir>
 option(RPIHT_BUILD_TESTS "Build the unit tests" ON)
@@ -230,5 +263,3 @@ if (RPIHT_BUILD_TESTS)
     message(STATUS "GoogleTest not found - unit tests are not built")
   endif()
 endif()
-
-# TODO: Add install targets if needed.

@@ -1,6 +1,12 @@
 #pragma once
+#include <filesystem>
 #include <string>
 #include <memory>
+
+// Writes 'text' to 'path' so that a power cut leaves the old or the new file,
+// never an empty one (temporary file, flushed, renamed). Where no temporary file
+// can be made in that folder, the file is overwritten in place. false on failure.
+bool write_file_safely(const std::filesystem::path& path, const std::string& text);
 
 
 
