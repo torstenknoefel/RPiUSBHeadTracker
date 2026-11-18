@@ -389,11 +389,11 @@ Each library is downloaded from a fork under [github.com/torstenknoefel](https:/
 | [LCCV](https://github.com/kbarni/LCCV) | Camera access (libcamera + OpenCV); built as a static library and linked into the program | `bca9b3d` (main, 2025-06-12) |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT licence) | Runs the NeuralNet face model. The ready-built release package for 64-bit ARM Linux, downloaded from the release page (there is no fork for release packages). | release 1.32.0 |
 
-The web pages load these in the browser, from the internet:
+The web pages use these. CMake downloads them from the npm registry (pinned, checked by SHA256) into `<build dir>/static/vendor`, and the Pi serves them itself: on the tracker's own Wi-Fi the phone has no internet, so the pages load nothing from the internet.
 
 | Library | Used for | Version |
 |---|---|---|
-| [BeerCSS](https://www.beercss.com) (MIT licence) | Material Design 3 components and Material Symbols icons | 3.12.13 (cdn.jsdelivr.net) |
-| [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) (SIL Open Font License) | Number readouts | Google Fonts |
+| [BeerCSS](https://www.beercss.com) (MIT licence) with the [Material Symbols](https://fonts.google.com/icons) icon fonts (Apache 2.0) | Material Design 3 components and icons | 3.12.13 |
+| [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) from [Fontsource](https://fontsource.org) (SIL Open Font License 1.1) | Number readouts | 5.2.6 |
 
 The colour scheme in `static/colors.css` was made once with Google's [material-color-utilities](https://github.com/material-foundation/material-color-utilities) 0.3.0; the pages do not load it.

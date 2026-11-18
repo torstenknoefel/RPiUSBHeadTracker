@@ -1,0 +1,16 @@
+/* Barlow Condensed (SIL Open Font License 1.1), served by the Pi itself:
+   the files are put into static/vendor by CMake (see CMakeLists.txt). */
+@font-face {
+    font-family: "Barlow Condensed";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url(vendor/barlow-condensed-latin-500-normal.woff2) format("woff2");
+}
+@font-face {
+    font-family: "Barlow Condensed";
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+    src: url(vendor/barlow-condensed-latin-500-italic.woff2) format("woff2");
+}

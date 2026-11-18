@@ -134,6 +134,36 @@ if (RPIHT_NEURALNET)
   endif()
 endif()
 
+# Web page styles and fonts, served by the Pi itself from <build dir>/static/vendor:
+# on the tracker's own Wi-Fi (hotspot) the phone has no internet, so nothing may
+# come from a CDN. From the npm registry, pinned and checked by SHA256 (no fork
+# for release packages, as for ONNX Runtime):
+#   BeerCSS (MIT licence) with the Material Symbols icon fonts (Apache 2.0)
+#   Barlow Condensed from Fontsource (SIL Open Font License 1.1)
+FetchContent_Declare(beercss
+  URL      https://registry.npmjs.org/beercss/-/beercss-3.12.13.tgz
+  URL_HASH SHA256=5cc9f6086d385a3f150e91b2b3c7ac78e2f1f53bedfa84abe3a699277c1dbcb2
+)
+FetchContent_Declare(barlow_condensed
+  URL      https://registry.npmjs.org/@fontsource/barlow-condensed/-/barlow-condensed-5.2.6.tgz
+  URL_HASH SHA256=b5380732d6b60749237a908ac6a8c117676fb82509440768bbc0d83a8835a538
+)
+FetchContent_MakeAvailable(beercss barlow_condensed)  # just unpacks: no CMakeLists.txt
+set(_vendor "${CMAKE_CURRENT_BINARY_DIR}/static/vendor")
+file(MAKE_DIRECTORY "${_vendor}")
+# The stylesheet looks for its icon fonts next to itself first and on the CDN
+# second; the CDN address is taken out, so the pages never reach the internet.
+file(READ "${beercss_SOURCE_DIR}/dist/cdn/beer.min.css" _beer_css)
+string(REPLACE ",url(https://cdn.jsdelivr.net/npm/beercss@3.12.13/dist/cdn/" ",url(" _beer_css "${_beer_css}")
+file(WRITE "${_vendor}/beer.min.css" "${_beer_css}")
+file(GLOB _beer_files "${beercss_SOURCE_DIR}/dist/cdn/*.svg" "${beercss_SOURCE_DIR}/dist/cdn/*.woff2")
+file(COPY ${_beer_files} "${beercss_SOURCE_DIR}/dist/cdn/beer.min.js" DESTINATION "${_vendor}")
+file(COPY_FILE "${beercss_SOURCE_DIR}/LICENSE" "${_vendor}/beercss-LICENSE.txt")
+file(COPY "${barlow_condensed_SOURCE_DIR}/files/barlow-condensed-latin-500-normal.woff2"
+          "${barlow_condensed_SOURCE_DIR}/files/barlow-condensed-latin-500-italic.woff2"
+     DESTINATION "${_vendor}")
+file(COPY_FILE "${barlow_condensed_SOURCE_DIR}/LICENSE" "${_vendor}/barlow-condensed-LICENSE.txt")
+
 find_package( OpenCV REQUIRED )
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/templates")
