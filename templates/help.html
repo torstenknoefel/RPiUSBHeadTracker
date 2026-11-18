@@ -127,7 +127,7 @@
             <div class="body">
                 <p>When the tracker is on no Wi-Fi network – the first time, or when the known network is gone – it opens its own Wi-Fi called <b>HeadTracker-…</b> (open, no password).</p>
                 <ol>
-                    <li>Connect your phone or PC to <b>HeadTracker-…</b>. Most phones then open the setup page by themselves; otherwise open <code>http://10.42.0.1/setup</code>.</li>
+                    <li>Connect your phone or PC to <b>HeadTracker-…</b>. Most phones then show <b>Sign in to network</b>: tap it and the setup page opens. Otherwise open <code>http://10.42.0.1/setup</code> – on a phone, <b>turn off mobile data first</b>: the tracker's Wi-Fi has no internet, so the phone would send the page's requests over mobile data, and the list of networks stays empty.</li>
                     <li>Pick your network, type its password and press <b>Join</b>.</li>
                     <li>The tracker's own Wi-Fi closes. Connect your phone or PC to your network again and open the tracker by its name, for example <code>http://{{hostname}}.local:{{port}}</code>. Some Android phones do not know these names: look for the tracker in your router's list of devices.</li>
                 </ol>

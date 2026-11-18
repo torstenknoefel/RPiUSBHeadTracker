@@ -437,7 +437,11 @@ public:
             std::lock_guard<std::mutex> lock(mtx_);
             ctx["port"] = running_.port;  // the page's address once the Pi is on the home network
           }
-          return crow::response(page.render(ctx));
+          auto response = crow::response(page.render(ctx));
+          // A phone must not show a stored copy: its requests would then not
+          // reach the tracker, and the user would not notice
+          response.set_header("Cache-Control", "no-store");
+          return response;
         });
 
     // Wi-Fi state; with ?networks=1 also the nearby networks (takes a few seconds)

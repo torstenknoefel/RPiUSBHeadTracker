@@ -214,15 +214,29 @@
             }
         }
 
+        // The tracker does not answer: on the tracker's own Wi-Fi this is usually
+        // the phone sending everything over mobile data (the Wi-Fi has no internet)
+        function noAnswer() {
+            const li = document.createElement("li");
+            li.className = "empty small-text";
+            li.textContent = "No answer from the tracker.";
+            el("networks").replaceChildren(li);
+            notice("error", "signal_wifi_bad",
+                para("The tracker does not answer."),
+                para("If you are on its own Wi-Fi (HeadTracker-…): turn off mobile data on your phone while setting up, or choose \"Stay connected\" / \"Use this network\" when the phone says the Wi-Fi has no internet. Then press ", bold("Search again"), "."));
+        }
+
         async function load(withNetworks) {
             try {
-                const r = await fetch(withNetworks ? "/wifi?networks=1" : "/wifi", { cache: "no-store" });
+                const r = await fetch(withNetworks ? "/wifi?networks=1" : "/wifi",
+                    { cache: "no-store", signal: AbortSignal.timeout(withNetworks ? 30000 : 10000) });
                 if (!r.ok) throw new Error(r.status);
                 const w = await r.json();
                 showState(w);
                 if (withNetworks) showNetworks(w.networks || []);
                 return w;
             } catch (e) {
+                if (withNetworks) noAnswer();
                 return null;
             }
         }

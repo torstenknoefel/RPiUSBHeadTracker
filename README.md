@@ -154,7 +154,7 @@ The first argument is the config file (default `/etc/USBHT.json`), the second th
 sudo bash install_wifi.sh ~/USBHT.json
 ```
 
-When the Pi is on no Wi-Fi network – the first time, or when the known network is gone for 90 seconds – it opens its own open Wi-Fi **HeadTracker-XXXX** (the end of its Wi-Fi address). A phone or PC that joins it gets the setup page by itself (like hotel Wi-Fi), or opens `http://10.42.0.1/setup`. There the user picks the home network and types its password. The setup page is also on the Config page (**Change Wi-Fi**), with **Forget** for the current network.
+When the Pi is on no Wi-Fi network – the first time, or when the known network is gone for 90 seconds – it opens its own open Wi-Fi **HeadTracker-XXXX** (the end of its Wi-Fi address). A phone or PC that joins it gets the setup page by itself (like hotel Wi-Fi: "Sign in to network"), or opens `http://10.42.0.1/setup`. Phones send the requests of a normal browser tab over mobile data when the Wi-Fi has no internet, so then mobile data has to be off; the "Sign in to network" window always uses the hotspot. There the user picks the home network and types its password. The setup page is also on the Config page (**Change Wi-Fi**), with **Forget** for the current network.
 
 > **Careful:** on a Pi you reach over its Wi-Fi, a lost network makes it open the hotspot instead – it is then reachable only there (or over Ethernet).
 
