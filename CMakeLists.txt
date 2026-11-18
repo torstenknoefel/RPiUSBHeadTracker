@@ -13,7 +13,7 @@ endif()
 project (RPiUSBHeadTracker VERSION 0.1.0 LANGUAGES CXX)
 add_compile_definitions(ASIO_STANDALONE)
 # Add source to this project's executable.
-add_executable (RPiUSBHeadTracker "RPiUSBHeadTracker.cpp" "RPiUSBHeadTracker.h" "USBJoystick.h" "USBJoystick.cpp" "RPiHTWebServer.cpp" "RPiHTConfig.h" "RPiHTConfig.cpp" "RPiHTWebApp.h" "RPiHTWebApp.cpp" "QueryParser.h" "QueryParser.cpp"  "RPiHTCam.cpp" "RPiHTCam.h" "CmdParser.h" "HeadTracker.h" "HeadTracker.cpp" "TrackerSettings.h" "TrackerSettings.cpp" "Trial.h" "Trial.cpp" "HeadPose.h" "HeadPose.cpp" "NeuralPose.h" "NeuralPose.cpp" "NeuralPoseMath.h" "NeuralPoseMath.cpp" "JoystickMapping.h" "JoystickMapping.cpp" "OneEuroFilter.h")
+add_executable (RPiUSBHeadTracker "RPiUSBHeadTracker.cpp" "RPiUSBHeadTracker.h" "USBJoystick.h" "USBJoystick.cpp" "RPiHTWebServer.cpp" "RPiHTConfig.h" "RPiHTConfig.cpp" "RPiHTWebApp.h" "RPiHTWebApp.cpp" "QueryParser.h" "QueryParser.cpp"  "RPiHTCam.cpp" "RPiHTCam.h" "CmdParser.h" "HeadTracker.h" "HeadTracker.cpp" "TrackerSettings.h" "TrackerSettings.cpp" "Trial.h" "Trial.cpp" "HeadPose.h" "HeadPose.cpp" "NeuralPose.h" "NeuralPose.cpp" "NeuralPoseMath.h" "NeuralPoseMath.cpp" "JoystickMapping.h" "JoystickMapping.cpp" "OneEuroFilter.h" "Command.h" "Command.cpp" "WifiSetup.h" "WifiSetup.cpp")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET RPiUSBHeadTracker PROPERTY CXX_STANDARD 20)

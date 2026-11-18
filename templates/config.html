@@ -126,6 +126,15 @@
             </fieldset>
         </form>
 
+        <!-- Wi-Fi: on its own page (also the hotspot's setup page) -->
+        <fieldset class="border round label">
+            <legend>Wi-Fi <a href="/help#wifi" class="help-link" title="Help: Wi-Fi" aria-label="Help: Wi-Fi"><i>help</i></a></legend>
+            <p class="small-text" id="wifi-now">–</p>
+            <nav class="right-align">
+                <a class="button border" href="/setup"><i>wifi</i><span>Change Wi-Fi</span></a>
+            </nav>
+        </fieldset>
+
         <!-- Joystick device and web server: used after a restart -->
         <form action="/config" method="post">
             <input type="hidden" name="section" value="connection" />
@@ -168,6 +177,18 @@
     </main>
     <script>
         const el = id => document.getElementById(id);
+
+        // Which Wi-Fi the tracker is on (once, when the page opens)
+        (async () => {
+            try {
+                const r = await fetch("/wifi", { cache: "no-store" });
+                const w = await r.json();
+                el("wifi-now").textContent = !w.available ? "This Pi has no Wi-Fi (or NetworkManager is not running)."
+                    : w.mode === "client" ? "On " + w.ssid + ", address " + (w.address || "–") + "."
+                    : w.mode === "hotspot" ? "Own Wi-Fi " + w.ssid + " is open: the tracker is on no network."
+                    : "Not on a network right now.";
+            } catch (e) { /* the bar shows the lost connection */ }
+        })();
 
         // Load the next picture only when the previous one has arrived, at most
         // about 10 per second. Requests never pile up on a slow connection, and

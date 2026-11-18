@@ -43,6 +43,7 @@
             <a class="chip" href="#sim"><i>sports_motorsports</i><span>In your sim</span></a>
             <a class="chip" href="#screen"><i>dashboard</i><span>What you see</span></a>
             <a class="chip" href="#tuning"><i>tune</i><span>Tuning</span></a>
+            <a class="chip" href="#wifi"><i>wifi</i><span>Wi-Fi</span></a>
             <a class="chip" href="#trouble"><i>build</i><span>Problems</span></a>
             <a class="chip" href="#about"><i>info</i><span>About</span></a>
         </nav>
@@ -118,6 +119,21 @@
                     <tr><td><b>The middle is off</b> (after moving the seat or the camera)</td><td>Look straight ahead and press <b>Centre</b>.</td></tr>
                 </table>
                 <p><b>Defaults</b> on Adjust puts these values back to where they started.</p>
+            </div>
+        </details>
+
+        <details class="help-section" id="wifi">
+            <summary><i>wifi</i>Wi-Fi<i class="chev">expand_more</i></summary>
+            <div class="body">
+                <p>When the tracker is on no Wi-Fi network – the first time, or when the known network is gone – it opens its own Wi-Fi called <b>HeadTracker-…</b> (open, no password).</p>
+                <ol>
+                    <li>Connect your phone or PC to <b>HeadTracker-…</b>. Most phones then open the setup page by themselves; otherwise open <code>http://10.42.0.1/setup</code>.</li>
+                    <li>Pick your network, type its password and press <b>Join</b>.</li>
+                    <li>The tracker's own Wi-Fi closes. Connect your phone or PC to your network again and open the tracker by its name, for example <code>http://{{hostname}}.local:{{port}}</code>. Some Android phones do not know these names: look for the tracker in your router's list of devices.</li>
+                </ol>
+                <p>If the password was wrong, the tracker's own Wi-Fi comes back after about a minute, and the setup page says what went wrong.</p>
+                <p>To move to another network, use <b>Change Wi-Fi</b> on <a href="/config" class="link">Config</a>. <b>Forget</b> there makes the tracker open its own Wi-Fi again.</p>
+                <p>The tracker cannot join company networks that need a user name, or old WEP networks.</p>
             </div>
         </details>
 

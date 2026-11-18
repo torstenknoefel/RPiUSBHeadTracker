@@ -1,0 +1,13 @@
+# Port 80 on the hotspot's address (10.42.0.1): phones check for internet on
+# port 80, the web server is on port @PORT@. headtracker-portal.service passes
+# the connections on. FreeBind: the address only exists while the hotspot is open.
+# Installed by install_wifi.sh, which fills in the @...@ values.
+[Unit]
+Description=RPiUSBHeadTracker: port 80 on the hotspot
+
+[Socket]
+ListenStream=10.42.0.1:80
+FreeBind=yes
+
+[Install]
+WantedBy=sockets.target

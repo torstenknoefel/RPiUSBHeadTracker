@@ -1,0 +1,8 @@
+// Lets the head tracker (user @USER@) change the Wi-Fi through NetworkManager:
+// join a network, forget one, open the hotspot again. The program runs as a
+// service, not in a login session, so it needs this permission.
+// Installed by install_wifi.sh into /etc/polkit-1/rules.d/.
+polkit.addRule(function(action, subject) {
+  if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 && subject.user == "@USER@")
+    return polkit.Result.YES;
+});

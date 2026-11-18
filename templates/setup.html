@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    {{> head.html}}
+</head>
+<body>
+    {{> menu.html}}
+    <style>
+        /* "hidden" must win over the display values below */
+        [hidden] { display: none !important; }
+        .wifi-now { display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0 0 16px 0;
+                    border-radius: 12px; background: var(--surface-container); }
+        .wifi-now > i { font-size: 2rem; color: var(--primary); }
+        .wifi-now .what { flex: 1 1 auto; min-width: 0; }
+        .wifi-now .what > div:first-child { font-size: 1.125rem; font-weight: 500; overflow-wrap: anywhere; }
+        .notice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; margin: 0 0 16px 0; border-radius: 12px; }
+        .notice > i { margin-top: 2px; }
+        .notice.error { background: var(--error-container); color: var(--on-error-container); }
+        .notice.success { background: var(--success-container); color: var(--on-success-container); }
+        .notice.info { background: var(--info-container); color: var(--on-info-container); }
+        .notice p { margin: 0 0 6px 0; line-height: 1.5; }
+        .notice p:last-child { margin-bottom: 0; }
+        .networks { list-style: none; margin: 0 0 16px 0; padding: 0; border-radius: 12px; overflow: hidden;
+                    background: var(--surface-container); }
+        .networks li + li { border-top: 1px solid var(--outline-variant); }
+        .networks button.net { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center;
+                               gap: 16px; padding: 12px 16px; cursor: pointer; }
+        .networks button.net:hover, .networks button.net:focus-visible { background: var(--surface-container-highest); }
+        .networks button.net[aria-pressed="true"] { background: var(--secondary-container); color: var(--on-secondary-container); }
+        .networks button.net[disabled] { opacity: 0.5; cursor: default; }
+        .networks .name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+        .networks .empty { padding: 16px; }
+        .list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; }
+        .list-head h6 { margin: 0; }
+        fieldset { margin-top: 8px; }
+        .actions { justify-content: flex-end; flex-wrap: wrap; }
+    </style>
+    <main class="responsive">
+        {{> statusbar.html}}
+
+        <h5>Wi-Fi <a class="help-link" href="/help#wifi" title="Help: Wi-Fi" aria-label="Help: Wi-Fi"><i>help</i></a></h5>
+
+        <div class="wifi-now" id="now">
+            <i id="now-icon">wifi_find</i>
+            <div class="what">
+                <div id="now-title">Looking at the Wi-Fi …</div>
+                <div class="small-text" id="now-detail"></div>
+            </div>
+            <button class="border" id="forget" hidden title="The tracker forgets this network; without another known network it opens its own Wi-Fi">
+                <i>wifi_off</i><span>Forget</span>
+            </button>
+        </div>
+
+        <div class="notice" id="notice" hidden><i id="notice-icon">info</i><div id="notice-text"></div></div>
+
+        <div id="chooser">
+            <div class="list-head">
+                <h6>Networks nearby</h6>
+                <button class="border small" id="rescan" title="Search for networks again"><i>refresh</i><span>Search again</span></button>
+            </div>
+            <ul class="networks" id="networks"><li class="empty small-text">Searching …</li></ul>
+
+            <form id="join">
+                <fieldset class="border round label">
+                    <legend>Join a network</legend>
+                    <div class="field border label">
+                        <input type="text" id="ssid" name="ssid" placeholder=" " autocomplete="off" autocapitalize="off" spellcheck="false" required maxlength="32">
+                        <label for="ssid">Network name</label>
+                        <span class="helper">Pick it above, or type the name of a hidden network.</span>
+                    </div>
+                    <div class="field border label suffix" id="password-field">
+                        <input type="password" id="password" name="password" placeholder=" " autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64">
+                        <label for="password">Password</label>
+                        <i id="show-password" role="button" tabindex="0" title="Show the password" aria-label="Show the password" style="cursor:pointer">visibility</i>
+                    </div>
+                    <nav class="actions">
+                        <button type="submit" id="join-button"><i>wifi</i><span>Join</span></button>
+                    </nav>
+                </fieldset>
+            </form>
+        </div>
+    </main>
+    <script>
+        const el = id => document.getElementById(id);
+        const HOST = "{{hostname}}", PORT = "{{port}}";
+        let networks = [];
+        let wifiMode = "";
+
+        // Tracker state for the bar at the top
+        async function track() {
+            try {
+                const r = await fetch("/state", { cache: "no-store" });
+                if (!r.ok) throw new Error(r.status);
+                window.htTrackState(await r.json());
+            } catch (e) {
+                window.htTrackState(null);
+            }
+            setTimeout(track, 500);
+        }
+        track();
+
+        // A paragraph with plain text; network names can hold any character, so never HTML
+        function para(...parts) {
+            const p = document.createElement("p");
+            for (const part of parts) {
+                if (typeof part === "string") p.append(part);
+                else p.append(part);
+            }
+            return p;
+        }
+        function bold(text) { const b = document.createElement("b"); b.textContent = text; return b; }
+        function link(url) { const a = document.createElement("a"); a.href = a.textContent = url; a.className = "link"; return a; }
+        function notice(kind, icon, ...paragraphs) {
+            const n = el("notice");
+            n.className = "notice " + kind;
+            el("notice-icon").textContent = icon;
+            el("notice-text").replaceChildren(...paragraphs);
+            n.hidden = paragraphs.length === 0;
+        }
+        const homeUrl = () => "http://" + (HOST ? HOST + ".local" : location.hostname) + (PORT && PORT !== "80" ? ":" + PORT : "");
+
+        function showState(w) {
+            wifiMode = w.mode;
+            const icon = { client: "wifi", hotspot: "wifi_tethering", connecting: "wifi_find", off: "wifi_off" }[w.mode] || "wifi_off";
+            el("now-icon").textContent = w.available ? icon : "wifi_off";
+            let title, detail;
+            if (!w.available) {
+                title = "No Wi-Fi found";
+                detail = "This Pi has no Wi-Fi, or NetworkManager is not running.";
+            } else if (w.mode === "client") {
+                title = "On " + w.ssid;
+                detail = "Address " + (w.address || "–") + " · open the tracker at " + homeUrl();
+            } else if (w.mode === "hotspot") {
+                title = "Own Wi-Fi " + w.ssid + " is open";
+                detail = "The tracker is on no network yet. Pick yours below.";
+            } else if (w.mode === "connecting") {
+                title = "Joining a network …";
+                detail = "";
+            } else {
+                title = "Not on a network";
+                detail = "The tracker opens its own Wi-Fi shortly.";
+            }
+            el("now-title").textContent = title;
+            el("now-detail").textContent = detail;
+            el("forget").hidden = w.mode !== "client";
+            el("rescan").title = w.mode === "hotspot"
+                ? "Shows the list again. The tracker cannot search while it is a hotspot; it renews the list every few minutes when nobody is on it."
+                : "Search for networks again";
+
+            const j = w.join;
+            if (j.ssid && !j.busy && j.age_s > 600) {
+                // an old result: not worth showing any more
+            } else if (j.ssid && j.busy) {
+                notice("info", "hourglass_top", para("Joining ", bold(j.ssid), " …"));
+            } else if (j.ssid && !j.ok) {
+                notice("error", "error", para("Could not join ", bold(j.ssid), ": " + j.message), para("Check the name and the password, then try again."));
+            } else if (j.ssid && j.ok) {
+                notice("success", "check_circle", para("Joined ", bold(j.ssid), "."));
+            }
+        }
+
+        function strength(signal) {
+            if (signal >= 75) return "signal_wifi_4_bar";
+            if (signal >= 50) return "network_wifi_3_bar";
+            if (signal >= 25) return "network_wifi_2_bar";
+            return "network_wifi_1_bar";
+        }
+
+        function choose(n) {
+            el("ssid").value = n.ssid;
+            el("password-field").hidden = n.open;
+            el("password").value = "";
+            for (const b of document.querySelectorAll("button.net"))
+                b.setAttribute("aria-pressed", b.dataset.ssid === n.ssid ? "true" : "false");
+            if (!n.open) el("password").focus();
+        }
+
+        function showNetworks(list) {
+            networks = list;
+            const ul = el("networks");
+            ul.replaceChildren();
+            if (list.length === 0) {
+                const li = document.createElement("li");
+                li.className = "empty small-text";
+                li.textContent = "No networks found. Type the name below, or search again.";
+                ul.append(li);
+                return;
+            }
+            for (const n of list) {
+                const li = document.createElement("li");
+                const b = document.createElement("button");
+                b.type = "button";
+                b.className = "net";
+                b.dataset.ssid = n.ssid;
+                b.setAttribute("aria-pressed", "false");
+                const i = document.createElement("i");
+                i.textContent = strength(n.signal);
+                const name = document.createElement("span");
+                name.className = "name";
+                name.textContent = n.ssid;
+                const sec = document.createElement("i");
+                sec.textContent = n.open ? "lock_open" : "lock";
+                sec.title = n.open ? "Open network" : n.security;
+                b.append(i, name, sec);
+                if (!n.usable) {
+                    b.disabled = true;
+                    b.title = "Company networks (with a user name) and old WEP networks cannot be used";
+                } else {
+                    b.addEventListener("click", () => choose(n));
+                }
+                li.append(b);
+                ul.append(li);
+            }
+        }
+
+        async function load(withNetworks) {
+            try {
+                const r = await fetch(withNetworks ? "/wifi?networks=1" : "/wifi", { cache: "no-store" });
+                if (!r.ok) throw new Error(r.status);
+                const w = await r.json();
+                showState(w);
+                if (withNetworks) showNetworks(w.networks || []);
+                return w;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // While a network is joined: show the result once the tracker answers again
+        async function follow() {
+            const w = await load(false);
+            if (!w || w.join.busy) setTimeout(follow, 2000);
+        }
+
+        el("rescan").addEventListener("click", async () => {
+            el("networks").replaceChildren(Object.assign(document.createElement("li"), { className: "empty small-text", textContent: "Searching …" }));
+            await load(true);
+        });
+
+        el("show-password").addEventListener("click", () => {
+            const p = el("password");
+            const show = p.type === "password";
+            p.type = show ? "text" : "password";
+            el("show-password").textContent = show ? "visibility_off" : "visibility";
+        });
+
+        // Typed names: show the password field unless the list says the network is open
+        el("ssid").addEventListener("input", () => {
+            const n = networks.find(x => x.ssid === el("ssid").value);
+            el("password-field").hidden = !!(n && n.open);
+        });
+
+        el("join").addEventListener("submit", async (ev) => {
+            ev.preventDefault();
+            const ssid = el("ssid").value;
+            if (!ssid) return;
+            const n = networks.find(x => x.ssid === ssid);
+            const password = (n && n.open) ? "" : el("password").value;
+            if (!(n && n.open) && password.length > 0 && password.length < 8) {
+                notice("error", "error", para("Wi-Fi passwords have at least 8 characters."));
+                return;
+            }
+            const wasHotspot = wifiMode === "hotspot";
+            el("join-button").disabled = true;
+            try {
+                const body = new URLSearchParams({ ssid, password });
+                const r = await fetch("/wifi/join", { method: "POST", body });
+                const a = await r.json();
+                if (!a.started) {
+                    notice("error", "error", para("A network is being joined already. Wait a moment."));
+                    el("join-button").disabled = false;
+                    return;
+                }
+            } catch (e) {
+                // the hotspot may already be closing
+            }
+            if (wasHotspot) {
+                notice("info", "wifi_tethering_off",
+                    para("The tracker now joins ", bold(ssid), ". Its own Wi-Fi closes, so this page loses the connection."),
+                    para("1. Connect this phone or PC to ", bold(ssid), " again."),
+                    para("2. Open ", link(homeUrl()), ". On some Android phones this name does not work: look for ", bold(HOST || "the tracker"), " in your router's list of devices and open its address with :" + PORT + "."),
+                    para("If the tracker's own Wi-Fi comes back after about a minute, joining did not work: connect to it again and this page says why."));
+            } else {
+                notice("info", "hourglass_top",
+                    para("Joining ", bold(ssid), " … If this PC is on another network, this page loses the connection: open ", link(homeUrl()), " from a device on ", bold(ssid), "."));
+            }
+            el("join-button").disabled = false;
+            setTimeout(follow, 3000);
+        });
+
+        el("forget").addEventListener("click", async () => {
+            if (!confirm("Forget this network? Without another known network the tracker opens its own Wi-Fi, and this page loses the connection.")) return;
+            try { await fetch("/wifi/forget", { method: "POST" }); } catch (e) { }
+            notice("info", "wifi_off", para("Network forgotten. To set up the Wi-Fi again, connect to the tracker's own Wi-Fi (HeadTracker-…) and open ", link("http://10.42.0.1/setup"), "."));
+        });
+
+        load(true);
+    </script>
+</body>
+</html>

@@ -11,6 +11,9 @@ add_executable(rpiht_tests
   test_TrackerSettings.cpp
   test_Trial.cpp
   test_NeuralPoseMath.cpp
+  test_WifiSetup.cpp
+  ${PROJECT_SOURCE_DIR}/Command.cpp
+  ${PROJECT_SOURCE_DIR}/WifiSetup.cpp
   ${PROJECT_SOURCE_DIR}/QueryParser.cpp
   ${PROJECT_SOURCE_DIR}/RPiHTConfig.cpp
   ${PROJECT_SOURCE_DIR}/USBJoystick.cpp

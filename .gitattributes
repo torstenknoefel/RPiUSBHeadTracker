@@ -1,3 +1,6 @@
 # Shell scripts run on the Pi and must keep LF line endings, also in Windows checkouts.
 *.sh text eol=lf
 *.service.in text eol=lf
+*.socket.in text eol=lf
+*.rules.in text eol=lf
+wifi/*.conf text eol=lf
